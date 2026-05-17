@@ -39,6 +39,12 @@ Le jeu est entièrement gratuit à télécharger et à jouer. Il propose des ach
 - Une difficulté qui s'adapte à vous, jamais frustrante
 - Des événements et défis qui renouvellent le contenu chaque jour
 
+### État actuel de la build
+- Les niveaux 1 à 10 sont conçus à la main, puis Lumora génère des niveaux à l'infini.
+- Chaque niveau affiche maintenant un **monde** et une **règle spéciale** pour que vous lisiez instantanément son ambiance et sa contrainte.
+- Les vidéos récompensées sont centralisées : elles servent à continuer après une défaite ou à obtenir un bonus volontaire dans la boutique et les événements.
+- Les niveaux procéduraux affichent aussi des **objectifs secondaires** qui, lorsqu'ils sont réussis, donnent des récompenses persistantes utiles pour les runs suivants.
+
 ---
 
 ## L'histoire du jeu
@@ -104,17 +110,32 @@ Tous les 20 niveaux, un **Gardien** apparaît. Ce n'est pas un combat : c'est un
 
 ## Les mondes et les niveaux
 
-Lumora est divisé en **mondes thématiques**, chacun contenant **20 niveaux**.
+Lumora fonctionne maintenant en deux temps :
+- **Niveaux 1 à 10** : niveaux artisanaux pour apprendre les bases et monter progressivement en intensité.
+- **À partir du niveau 11** : mondes procéduraux infinis, avec variations de densité, de couches et de règles.
 
-| Monde | Nom | Ambiance | Seuil pour débloquer |
-|-------|-----|----------|---------------------|
-| 1 | Aube Dorée | Ciel rose et or, brume légère, chaleur | Débloqué dès le début |
-| 2 | Crépuscule Violet | Ciel violet et indigo, ombres douces | 30 étoiles cumulées |
-| 3 | Nuit Étoilée | Noir profond, constellations, nœuds argentés | 65 étoiles cumulées |
-| 4 | Aurore Boréale | Vert et bleu fluo, particules dansantes | 105 étoiles cumulées |
-| 5 | Soleil de Midi | Blanc et doré intense, lumière crue | 150 étoiles cumulées |
+Les mondes actuellement utilisés par la génération sont :
 
-Au lancement du jeu, 5 mondes sont disponibles, soit **100 niveaux** au total. De nouveaux mondes et niveaux seront ajoutés régulièrement lors des mises à jour.
+| Monde | Nom | Ambiance |
+|-------|-----|----------|
+| 1 | Sanctuaire Aurore | Halo bleuté, respiration calme, apprentissage |
+| 2 | Marée Prismatique | Reflets rose/violet, ponts lumineux, lecture rapide |
+| 3 | Fournaise Solaire | Oranges et ors, rythme plus agressif |
+| 4 | Floraison Abyssale | Violets profonds, pression visuelle maîtrisée |
+| 5 | Jardin Comète | Verts et bleus électriques, sensation d'élan |
+
+Chaque niveau affiche aussi une règle spéciale :
+- **Flux stable** : lecture standard.
+- **Surcharge** : une erreur coûte 2 coups.
+- **Résonance** : chaque 3e bonne connexion donne un bonus de score et de temps.
+- **Blackout** : le temps descend plus vite et l'indice coûte 2 coups.
+
+À partir des niveaux procéduraux, vous verrez aussi des **objectifs secondaires** sous forme de petits badges pendant la partie :
+- **Sans doublon** : ne jamais rejouer une liaison déjà validée.
+- **Combo minimal** : atteindre un certain rythme de connexions propres.
+- **Flux ascendant** : garder un trajet fluide sans revenir vers le haut.
+
+Ces objectifs sont optionnels : ils ne vous empêchent jamais de finir le niveau, mais ils enrichissent votre stratégie et vos récompenses.
 
 ### Débloquer un monde
 Pour débloquer un nouveau monde, vous devez accumuler un certain nombre d'**étoiles** dans les mondes précédents. Par exemple, pour accéder au Monde 2 (Crépuscule Violet), il vous faut 30 étoiles au total dans le Monde 1.
@@ -127,23 +148,21 @@ Sur la carte des mondes, les niveaux que vous n'avez pas encore atteints apparai
 ## Le système de vies
 
 ### Combien de vies avez-vous ?
-Vous disposez de **5 vies maximum** en permanence.
+Chaque niveau vous donne **3 vies**. Chaque vie contient aussi un stock de **coups**.
 
-### Comment perdez-vous une vie ?
-À chaque fois que vous **échouez** à un niveau (temps écoulé, trop d'erreurs, abandon), vous perdez **1 vie**.
+### Comment perdez-vous un coup ou une vie ?
+- Une **bonne connexion** ne coûte rien.
+- Une **mauvaise connexion** ou un **doublon** consomme des coups.
+- Quand vos coups tombent à zéro, vous perdez **1 vie** et récupérez un stock complet de coups.
+- Si toutes vos vies tombent à zéro, le niveau est perdu.
 
 ### Comment récupérez-vous des vies ?
-- **Naturellement** : 1 vie se régénère toutes les **20 minutes**, même si vous ne jouez pas.
-- **Vidéo récompensée** : regardez une courte vidéo publicitaire pour gagner **1 vie immédiatement** (maximum 3 vidéos par jour).
-- **Récompense quotidienne** : en revenant chaque jour, vous pouvez gagner des vies dans le calendrier des récompenses.
-- **Boutique** : achetez un pack de vies si vous ne voulez pas attendre.
+- **Après une défaite** : une vidéo récompensée peut vous redonner **+1 vie**, puis une seconde vidéo peut vous donner **+2 vies** sur ce même échec.
+- **Boutique** : certains produits proposent un bonus vidéo qui ajoute une **vie de réserve persistante**.
+- **Événements** : certains défis proposent des boosts vidéo qui alimentent aussi votre stock persistant.
 
 ### Que se passe-t-il si vous n'avez plus de vies ?
-Si vos vies tombent à zéro, vous ne pouvez plus lancer de niveau. Mais vous pouvez toujours :
-- Regarder une vidéo récompensée pour 1 vie
-- Attendre la régénération naturelle
-- Visiter la boutique
-- Consulter vos événements en cours
+Si vos vies tombent à zéro pendant un niveau, vous pouvez soit revenir à la carte, soit utiliser la vidéo récompensée de reprise. Lumora ne force jamais la lecture : la décision reste la vôtre.
 
 **Important** : vous ne perdez jamais votre progression (étoiles, niveaux débloqués, cosmétiques) en manquant de vies. Seulement la possibilité de jouer immédiatement.
 
@@ -209,9 +228,10 @@ Cette courbe décroissante vous pousse doucement vers l'autonomie, sans jamais v
 
 ### Indice manuel (bouton ampoule)
 En haut à droite de l'écran de jeu, le bouton **Indice** (une petite ampoule) vous permet de demander de l'aide quand vous voulez :
-- Consomme **1 jeton d'indice**.
-- Vous régénérez **1 jeton gratuit par jour** (maximum 3 jetons en stock).
-- Si vous n'avez plus de jetons, vous pouvez regarder une **vidéo récompensée** pour en obtenir 1.
+- Il révèle une **connexion utile** directement sur le plateau.
+- Il consomme **1 coup** sur la plupart des niveaux.
+- En mode **Blackout**, il consomme **2 coups**.
+- Si vous avez gagné des **indices persistants** via boutique ou événements, l'écran de jeu les consomme d'abord avant de vous faire payer en coups.
 
 **Attention** : utiliser un indice manuel **avant** la victoire retire la possibilité d'obtenir la **3e étoile** pour ce run. Mais vous pouvez rejouer le niveau plus tard pour récupérer vos 3 étoiles.
 
@@ -232,18 +252,31 @@ En jouant, vous pouvez obtenir des **power-ups** gratuits qui vous facilitent la
 
 | Power-up | Effet | Comment l'obtenir |
 |----------|-------|-------------------|
-| **Éclair de lumière** | Révèle la prochaine connexion correcte pendant 3 secondes | Récompense quotidienne, combo x5 |
-| **Temps suspendu** | Arrête le chronomètre pendant 10 secondes | Niveau terminé avec 3 étoiles |
-| **Super Filament** | Votre prochain filament traverse les ombres sans s'effacer | Événement week-end |
-| **Double Score** | Vos points sont multipliés par 2 pendant 1 niveau | Vidéo récompensée |
+| **Indice persistant** | Remplace le coût en coups de votre prochain indice manuel | Boutique, événements, objectif `Sans doublon` |
+| **Super Filament** | Absorbe votre prochaine erreur ou doublon sans perdre de coup | Événement week-end, objectif `Flux ascendant` |
+| **Double Score** | Double tous les points du niveau en cours une fois activé | Événement tournoi, objectif `Combo minimal` |
+| **Vie de réserve** | Redonne immédiatement 1 vie après une défaite | Boutique, Happy Hour, run avec tous les objectifs secondaires réussis |
 
-Les power-ups sont stockés dans votre inventaire et ne disparaissent pas. Vous pouvez les utiliser quand vous le souhaitez en tapant sur leur icône en début de niveau.
+Les power-ups sont stockés dans votre inventaire persistant. Vous pouvez les utiliser quand vous le souhaitez en tapant sur leur icône au début d'un niveau.
+
+### Récompenses de maîtrise
+Quand vous réussissez un objectif secondaire pour la **première fois** sur un niveau donné, Lumora vous récompense automatiquement :
+- **Sans doublon** -> `+1 indice persistant`
+- **Combo minimal** -> `+1 charge Double Score`
+- **Flux ascendant** -> `+1 charge Super Filament`
+
+Si vous réussissez **tous** les objectifs secondaires du niveau sur le même run, vous gagnez en plus **+1 vie de réserve**.
+
+Ces récompenses apparaissent directement dans l'écran de victoire. Elles ne demandent ni achat ni publicité : c'est votre qualité d'exécution qui alimente votre méta-progression.
 
 ---
 
 ## Les événements automatiques
 
 Lumora propose du contenu frais **sans mise à jour manuelle** grâce à des événements qui se déclenchent automatiquement.
+
+Dans la build actuelle, l'écran Événements est déjà branché sur la **même logique de vidéo récompensée** que le gameplay. Les bonus vidéo restent secondaires : vous pouvez toujours participer sans regarder de publicité.
+Les événements servent maintenant aussi à compléter la boucle des objectifs secondaires : ils donnent les mêmes familles de ressources que la maîtrise en partie, pour que votre inventaire reste cohérent où que vous jouiez.
 
 ### Défi Quotidien
 - **Quand** : tous les jours à minuit (heure UTC).
@@ -265,6 +298,7 @@ Lumora propose du contenu frais **sans mise à jour manuelle** grâce à des év
   - Top 100 : thème "Champion" exclusif
   - Top 10 : Passe Saisonnier gratuit pour la saison en cours
   - Top 1 : avatar légendaire "Soleil" + titre "Maître des Filaments"
+  - Bonus vidéo contextuel : **1 charge Double Score** pour préparer votre prochain run
 
 ### Happy Hour
 - **Quand** : 2 fois par semaine, le vendredi soir (horaire adapté à votre fuseau horaire).
@@ -332,9 +366,13 @@ Lumora est **gratuit** à télécharger et à jouer. Les achats sont **optionnel
 **Aucun produit ne dépasse 4,99 $.** Nous avons fait ce choix pour rester accessibles à tous.
 
 ### Les publicités
-- **Interstitielles** : une courte publicité s'affiche **tous les 5 niveaux complétés**, après votre écran de victoire. **Jamais pendant un niveau. Jamais après une défaite.** Si vous avez le Passe Saisonnier actif, vous ne voyez plus aucune publicité interstitielle.
-- **Récompensées** : des vidéos que vous choisissez de regarder pour gagner une récompense (vie, indice, double score, essai de thème). **Entièrement volontaires.**
+- **Interstitielles** : prévues uniquement hors gameplay et jamais pendant une tentative active.
+- **Récompensées** : des vidéos que vous choisissez de regarder pour gagner une reprise de partie ou un bonus contextuel (vie, indice, essai de thème, boost d'événement). **Entièrement volontaires.**
 - **Aucune bannière publicitaire** n'est affichée dans le jeu pour préserver l'immersion visuelle.
+
+La boutique actuelle propose aussi des **CTA vidéo secondaires** sur certains produits pour tester la valeur d'une vie de secours, d'un indice ou d'un thème sans perturber l'expérience principale.
+
+Les vies de réserve et indices gagnés via ces CTA sont maintenant conservés localement d'une session à l'autre.
 
 ---
 

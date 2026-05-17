@@ -51,8 +51,8 @@ class LumoraGame extends FlameGame
   VoidCallback? onDefeat;
   void Function(GameState state)? onStateChanged;
 
-  /// Rayon de détection tactile — généreux pour la précision du doigt mobile.
-  static const double _hitRadiusMultiplier = 5.0;
+  /// Rayon de détection tactile — reduit pour limiter les accroches involontaires.
+  static const double _hitRadiusMultiplier = 2.4;
 
   LumoraGame({required this.levelData, required this.gameState});
 
@@ -137,20 +137,27 @@ class LumoraGame extends FlameGame
     add(_lumie);
   }
 
-  /// Génère des positions aléatoires bien espacées pour les nœuds.
+  /// Génère des positions semi-aléatoires: on garde la topologie du niveau
+  /// (positions de base) puis on applique un léger jitter.
   List<Vector2> _generateRandomPositions(int count, Vector2 canvasSize) {
     final positions = <Vector2>[];
     final margin = 60.0;
-    final minDistance = 80.0;
-    final maxAttempts = 150;
+    final minDistance = 72.0;
+    final maxAttempts = 80;
+    final jitter = 36.0;
     final rng = Random();
 
     for (var i = 0; i < count; i++) {
+      final base = levelData.nodes[i].toAbsolute(canvasSize);
       Vector2? pos;
+
       for (var attempt = 0; attempt < maxAttempts; attempt++) {
-        final x = margin + rng.nextDouble() * (canvasSize.x - 2 * margin);
-        final y = margin + rng.nextDouble() * (canvasSize.y - 2 * margin);
-        final candidate = Vector2(x, y);
+        final candidate = Vector2(
+          (base.x + (rng.nextDouble() * 2 - 1) * jitter)
+              .clamp(margin, canvasSize.x - margin),
+          (base.y + (rng.nextDouble() * 2 - 1) * jitter)
+              .clamp(margin, canvasSize.y - margin),
+        );
 
         var tooClose = false;
         for (final existing in positions) {
@@ -166,12 +173,7 @@ class LumoraGame extends FlameGame
         }
       }
 
-      // Fallback si aucune position valide trouvée
-      positions.add(pos ??
-          Vector2(
-            margin + rng.nextDouble() * (canvasSize.x - 2 * margin),
-            margin + rng.nextDouble() * (canvasSize.y - 2 * margin),
-          ));
+      positions.add(pos ?? base);
     }
 
     return positions;
@@ -376,6 +378,7 @@ class LumoraGame extends FlameGame
         // Combo
         _comboCount++;
         _comboTimer = _comboWindow;
+        gameState.recordCombo(_comboCount);
         if (_comboCount >= 3) {
           _particles.emitComboSpiral(
             (_swipeStartNode!.position + endNode.position) / 2,
@@ -395,12 +398,23 @@ class LumoraGame extends FlameGame
           onVictory?.call();
         }
       } else {
-        _swipeFilament!.markBroken();
-        _filaments.add(_swipeFilament!);
         final midPoint = (_swipeStartNode!.position + endNode.position) / 2;
-        _particles.emitErrorScatter(midPoint);
-        LumoraHaptics.connectionError();
-        _sound.playErrorSound();
+        if (gameState.lastAttemptResult == ConnectionAttemptResult.shielded) {
+          _particles.emitConnectionBurst(midPoint, color: LumoraColors.auroraBlue);
+          LumoraHaptics.buttonPress();
+          _sound.playNodeNote('blue');
+          Future<void>.delayed(const Duration(milliseconds: 320), () {
+            if (_swipeFilament?.isMounted ?? false) {
+              _swipeFilament!.markBroken();
+            }
+          });
+        } else {
+          _swipeFilament!.markBroken();
+          _filaments.add(_swipeFilament!);
+          _particles.emitErrorScatter(midPoint);
+          LumoraHaptics.connectionError();
+          _sound.playErrorSound();
+        }
       }
     } else {
       _swipeFilament!.markBroken();
@@ -452,17 +466,44 @@ class LumoraGame extends FlameGame
     gameState.resume();
   }
 
-  void useHint() {
-    gameState.useHint();
+  bool useHint({bool consumeAttempt = true}) {
+    final hintConsumed = gameState.useHint(consumeAttempt: consumeAttempt);
+    if (!hintConsumed) {
+      return false;
+    }
 
     for (final rc in levelData.requiredConnections) {
       final conn = Connection(rc.from, rc.to);
       if (!gameState.connections.contains(conn)) {
-        _nodes[rc.from].markTarget();
-        _nodes[rc.to].markTarget();
+        final fromNode = _nodes[rc.from];
+        final toNode = _nodes[rc.to];
+
+        fromNode.markTarget();
+        toNode.markTarget();
+
+        // Aperçu bref d'une connexion possible.
+        final previewFilament = FilamentComponent(
+          startPos: fromNode.position.clone(),
+          endPos: toNode.position.clone(),
+          state: FilamentState.connected,
+          color: LumoraColors.auroraBlue,
+        );
+        add(previewFilament);
+
+        Future<void>.delayed(const Duration(milliseconds: 850), () {
+          if (previewFilament.isMounted) {
+            previewFilament.markBroken();
+          }
+        });
+
+        _particles.emitNodeRipple(fromNode.position, color: LumoraColors.auroraBlue);
+        _particles.emitNodeRipple(toNode.position, color: LumoraColors.auroraBlue);
+        _sound.playNodeNote('blue');
         break;
       }
     }
+
+    return true;
   }
 
   void restartLevel() {
@@ -473,22 +514,27 @@ class LumoraGame extends FlameGame
     gameState.addListener(_onGameStateChanged);
   }
 
-  void loadNextLevel() {
-    final currentIndex =
-        World1Levels.levels.indexWhere((l) => l.id == levelData.id);
-    if (currentIndex < World1Levels.levels.length - 1) {
-      final nextLevel = World1Levels.levels[currentIndex + 1];
-      gameState.loadLevel(nextLevel);
-      levelData = nextLevel;
-      _cancelCurrentDrag();
-      _loadLevel();
-      gameState.addListener(_onGameStateChanged);
+  void retryLevelPreservingLives() {
+    gameState.retryPreservingLives();
+    levelData = gameState.level;
+    _cancelCurrentDrag();
+    _loadLevel();
+    gameState.addListener(_onGameStateChanged);
+  }
 
-      if (_background != null) {
-        _background!.setWorldTheme(nextLevel.worldId);
-      }
-      _sound.setWorld(nextLevel.worldId);
+  bool loadNextLevel() {
+    final nextLevel = LevelCatalog.nextLevel(levelData);
+    gameState.loadLevel(nextLevel);
+    levelData = nextLevel;
+    _cancelCurrentDrag();
+    _loadLevel();
+    gameState.addListener(_onGameStateChanged);
+
+    if (_background != null) {
+      _background!.setWorldTheme(nextLevel.worldId);
     }
+    _sound.setWorld(nextLevel.worldId);
+    return true;
   }
 
   @override

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flame/flame.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app/router.dart';
@@ -37,10 +38,10 @@ Future<void> main() async {
 
 Future<void> _initializeThirdPartySDKs() async {
   try {
-    // Firebase — initialisé uniquement si la configuration est présente
-    const firebaseApiKey = String.fromEnvironment('FIREBASE_API_KEY');
-    if (firebaseApiKey.isNotEmpty && !Platform.isLinux) {
-      // TODO: await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    // Firebase — tentative réelle sur plateformes supportées.
+    // Si la config native n'est pas embarquée, on tombe sur le fallback sans bloquer l'app.
+    if ((Platform.isAndroid || Platform.isIOS || Platform.isMacOS) && Firebase.apps.isEmpty) {
+      await Firebase.initializeApp();
     }
 
     // AdMob — initialisé uniquement sur mobile et si la clé est présente

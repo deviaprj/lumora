@@ -1,5 +1,28 @@
 # Specifications Fonctionnelles Generales — Lumora
 
+## 0. Etat Produit — Session 2026-05-17
+
+### 0.1 Evolutions implementees
+- Le socle jouable couvre desormais **10 niveaux artisanaux** puis une **progression procedurale infinie**.
+- Le moteur de progression alterne des **mondes thematiques** (`Sanctuaire Aurore`, `Maree Prismatique`, `Fournaise Solaire`, `Floraison Abyssale`, `Jardin Comete`) avec des **regles speciales actives** : `Flux stable`, `Surcharge`, `Resonance`, `Blackout`.
+- Le systeme de tentative est maintenant dissocie : **3 vies par niveau** et **N coups par vie**. Les erreurs consomment des coups ; l'epuisement des coups retire une vie.
+- L'indice manuel est fonctionnel et montre une connexion utile. Il coute des coups, avec penalite renforcee sur les niveaux `Blackout`.
+- La reprise apres defaite est branchee sur une **video recompensee AdMob reelle** : premiere video = `+1 vie`, seconde video = `+2 vies`, sans recharger artificiellement le stock maximum.
+- Les ecrans **jeu**, **boutique** et **evenements** utilisent desormais la **meme logique de pub recompensee** : opt-in, contextualisee, jamais auto-lancee.
+- Les bonus video **vie de reserve** et **indice** sont maintenant stockes dans un **inventaire persistant local** et reutilisables entre les sessions.
+- Les charges **Double Score** et **Super Filament** sont maintenant activables depuis l'inventaire persistant et influencent reellement la tentative en cours.
+- Les niveaux proceduraux exposent des **objectifs secondaires** (`Sans doublon`, `Combo minimal`, `Flux ascendant`) visibles pendant la partie et dans l'overlay de victoire.
+- Chaque objectif secondaire reussi alimente des **recompenses de maitrise persistantes** afin de boucler progression, retention et rejouabilite sans imposer de publicite supplementaire.
+- Le rendu du gameplay a ete enrichi : nœuds avec anneaux orbitaux et halos chromatiques, filaments avec impulsion voyageuse et gradient, overlay de victoire auroral.
+
+### 0.2 Politique pub non intrusive retenue
+- Aucune video recompensee n'est imposee pour jouer.
+- Aucun affichage publicitaire n'apparait pendant une tentative active.
+- Les videos ne sont proposees que pour **continuer apres une defaite**, **obtenir un bonus de session en boutique** ou **booster un evenement**.
+- Les CTA pub restent secondaires face a l'action principale et sont limites a des contextes utiles au joueur.
+- Le meme pipeline doit etre conserve pour tous les futurs bonus afin d'eviter des comportements divergents entre ecrans.
+- La meta-boucle de retention doit privilegier en premier lieu les **recompenses gagnees par la performance** (objectifs secondaires, serie, evenements) avant toute acceleration publicitaire.
+
 ## 1. Vision Produit et Public Cible
 
 ### 1.1 Vision
@@ -93,9 +116,10 @@ L'application propose 4 modes d'authentification, dans l'ordre de priorite d'aff
 ## 5. Systeme de Progression
 
 ### 5.1 Niveaux
-- Le jeu est decoupe en **mondes** (thematiques visuelles) contenant chacun **20 niveaux**.
-- Chaque monde est debloque apres avoir obtenu un certain nombre d'etoiles cumulees dans le monde precedent.
-- Total au lancement : 5 mondes = 100 niveaux.
+- La progression actuelle commence par **10 niveaux artisanaux** servant de rampe d'apprentissage et de reference de qualite.
+- Au-dela, le jeu bascule sur une **generation procedurale infinie** par paliers de difficulte.
+- Chaque palier associe un **theme de monde**, une **densite de nœuds**, un **nombre de couches** et une **regle speciale**.
+- La notion de monde reste visible pour le joueur via la carte, l'ambiance visuelle et les chips de niveau, meme lorsque la progression devient infinie.
 
 ### 5.2 Systeme d'Etoiles
 - Chaque niveau peut rapporter 1 a 3 etoiles selon la performance :
@@ -103,7 +127,25 @@ L'application propose 4 modes d'authentification, dans l'ordre de priorite d'aff
   - 2 etoiles : Termine dans le temps alloue (par niveau).
   - 3 etoiles : Termine sans utiliser d'indice.
 
-### 5.3 Unlocks
+### 5.3 Objectifs secondaires proceduraux
+- Les niveaux proceduraux peuvent ajouter jusqu'a **3 objectifs secondaires** affiches dans l'interface de jeu puis recapitulés a la victoire.
+- Objectifs actuellement exploites :
+  - `Sans doublon` : terminer sans rejouer une connexion deja tracee.
+  - `Combo minimal` : atteindre un seuil de combo defini par le niveau procedural.
+  - `Flux ascendant` : conserver une trajectoire globale descendante sans retour vers le haut.
+- Les objectifs secondaires sont optionnels : ils approfondissent la partie sans bloquer la completion principale ni l'obtention de l'etoile de base.
+- La generation procedurale choisit ces objectifs en fonction du palier de difficulte et de la regle speciale active.
+
+### 5.4 Recompenses de maitrise
+- Chaque objectif secondaire reussi pour la **premiere fois sur un niveau donne** accorde une recompense persistante :
+  - `Sans doublon` -> `+1 indice persistant`
+  - `Combo minimal` -> `+1 charge Double Score`
+  - `Flux ascendant` -> `+1 charge Super Filament`
+- Si tous les objectifs secondaires du niveau sont remplis sur le meme run, le joueur gagne en plus `+1 vie de reserve`.
+- Les recompenses sont accordees une seule fois par niveau et par objectif pour eviter le farm sur rejouage.
+- L'overlay de victoire doit afficher clairement les objectifs valides et les recompenses de maitrise obtenues.
+
+### 5.5 Unlocks
 | Unlock | Condition |
 |--------|-----------|
 | Nouveau monde | Etoiles cumulees >= seuil du monde |
@@ -116,26 +158,30 @@ L'application propose 4 modes d'authentification, dans l'ordre de priorite d'aff
 - **RB-PR-01** : Le joueur ne peut pas sauter un niveau non debloque, sauf via video recompensee (1 saut par tranche de 24h).
 - **RB-PR-02** : Les etoiles sont cumulables et retroactives : rejouer un niveau pour ameliorer son score met a jour le max.
 - **RB-PR-03** : L'ecran de selection de niveau utilise des bulles organiques flottantes avec parallaxe 3D. Les niveaux verrouilles sont des bulles grises translucides avec un cadenas anime.
+- **RB-PR-04** : Chaque niveau doit exposer clairement son **theme de monde** et sa **regle speciale** dans l'UI de jeu.
+- **RB-PR-05** : Les niveaux proceduraux doivent egalement exposer leurs **objectifs secondaires** en cours de partie et a la victoire.
+- **RB-PR-06** : Les recompenses de maitrise associees aux objectifs secondaires doivent etre persistantes et accordees sans publicite.
 
 ---
 
 ## 6. Systeme de Difficulte Graduelle
 
 ### 6.1 Courbe d'Apprentissage
-La difficulte suit une courbe sigmoide moderee :
-- **Niveaux 1–10** : Tutoriel implicite, mecaniques introduites une par une, indices frequents.
-- **Niveaux 11–30** : Combinaison de 2 mecaniques, temps alloue legerement reduit.
-- **Niveaux 31–60** : Combinaison de 3 mecaniques, introduction d'obstacles dynamiques.
-- **Niveaux 61–90** : Mecaniques avancees, temps serre, indices rares.
-- **Niveaux 91+** : Maitrise complete, defis de precision, recompenses exclusives.
+La difficulte suit des **paliers proceduraux lisibles** :
+- **Niveaux 1–10** : niveaux artisanaux, apprentissage du geste, lecture des connexions, usage des coups/vies.
+- **Paliers proceduraux 1–2** : augmentation du nombre de nœuds et introduction de `Resonance`.
+- **Paliers proceduraux 3–4** : topologies plus denses, ponts internes, apparition de `Surcharge`.
+- **Paliers proceduraux 5+** : rotation continue des themes et apparition de `Blackout` avec pression temporelle accrue.
+- **Endgame infini** : alternance de configurations denses, lecture rapide et optimisation des ressources.
 
 ### 6.2 Parametres de Difficulte par Niveau
 | Parametre | Plage | Evolution |
 |-----------|-------|-----------|
-| Temps alloue | 120s – 30s | Decroit lineairement par paliers de 10 niveaux |
-| Nombre d'obstacles | 0 – 5 | Augmente tous les 15 niveaux |
-| Vitesse des elements | 1.0x – 1.8x | Augmente tous les 20 niveaux |
-| Complexite du puzzle | 2 – 8 etapes | Augmente tous les 10 niveaux |
+| Temps alloue | 76s – 30s | Decroit par tier, avec ajustement par regle speciale |
+| Nœuds actifs | 8 – 20 | Augmente par palier et sous-palier |
+| Couches de lecture | 3 – 7 | Augmente avec la profondeur du palier |
+| Regle speciale | Stable / Resonance / Surcharge / Blackout | Alternee pour casser la monotonie |
+| Coups par vie | 5 – 14 | Ajustes selon la pression du palier |
 
 ### 6.3 Validation de la Courbe
 - La courbe est validee par des tests de playthrough internes (minimum 5 testeurs par tranche de 20 niveaux).
@@ -171,7 +217,7 @@ Pour garantir l'accessibilite des debutants sans frustrer les joueurs avances, l
 ### 7.3 Comportement Dynamique
 - **Hesitation** : Le joueur ne touche aucun element interactif pendant X secondes (X = 5s par defaut, configurable).
 - **Indice automatique** : Declenche apres le delai du palier, si le joueur est en hesitation.
-- **Indice manuel** : Bouton indice accessible depuis la barre de pause (icone ampoule organique). Consomme 1 indice gratuit (regenere toutes les 24h) ou propose une video recompensee.
+- **Indice manuel** : Bouton indice accessible depuis la barre superieure. Il revele une connexion valide et consomme 1 coup, ou 2 coups en mode `Blackout`.
 
 ### 7.4 Regles Metier
 - **RB-IN-01** : Les indices automatiques ne retirent pas d'etoile. Seuls les indices manuels actives avant la victoire retirent la 3e etoile.
@@ -209,8 +255,8 @@ Pour garantir l'accessibilite des debutants sans frustrer les joueurs avances, l
 
 ### 9.1 Modele Economique
 Lumora est **gratuit** avec :
-- **Publicites interstitielles** : Affichees tous les X niveaux.
-- **Publicites recompensees** : Visionnement volontaire pour obtenir une recompense.
+- **Publicites interstitielles** : planifiees et strictement bornees hors gameplay.
+- **Publicites recompensees** : visionnement volontaire pour obtenir une aide ou un bonus contextualise.
 - **IAP abordables** : Achats integres a prix bas pour maximiser la conversion.
 
 ### 9.2 Publicites Interstitielles
@@ -223,14 +269,26 @@ Lumora est **gratuit** avec :
   - Reseau : Google Mobile Ads (AdMob).
 
 ### 9.3 Publicites Recompensees
-- **Declenchement** : Volontaire, via bouton organique "Bonus" en forme de bulle.
+- **Declenchement** : Volontaire, via CTA organique secondaire sur l'ecran concerne.
 - **Recompenses possibles** :
-  - 1 vie supplementaire (quand le joueur est a 0 vie).
-  - 1 indice supplementaire (quand le stock est a 0).
-  - Doubler les recompenses du daily reward.
-  - Debloquer un theme cosmétique pendant 24h (essai).
+  - Continuer apres defaite : `+1 vie`, puis `+2 vies` au second visionnage.
+  - Boutique : vie de reserve persistante, indice persistant, essai de theme de session.
+  - Evenements : boost quotidien, `Super Filament`, `Double Score` ou bonus `Happy Hour` persistants depuis la meme logique video.
 
-### 9.4 Achats Integres (IAP) — Abordables
+### 9.4 Boucle hybride performance + monetisation
+- La retention doit reposer sur une double source de progression :
+  - `Performance` : reussite des objectifs secondaires, serie quotidienne, evenement complete.
+  - `Acceleration volontaire` : video recompensee contextuelle ou IAP.
+- Les charges `Double Score` et `Super Filament` ne doivent pas provenir uniquement de la pub ; elles doivent aussi etre gagnables via la performance de jeu.
+- Le joueur doit percevoir que la maitrise du niveau nourrit directement son inventaire et prepare les runs suivants.
+
+### 9.5 Regles UX anti-intrusion
+- Les videos recompensees ne doivent jamais masquer l'action principale.
+- Elles n'apparaissent que dans des moments de besoin ou d'acceleration volontaire.
+- Une meme implementation centralisee doit etre reutilisee dans le gameplay, la boutique et les evenements.
+- Les messages doivent presenter clairement la recompense avant le lancement de la video.
+
+### 9.6 Achats Integres (IAP) — Abordables
 Tous les prix sont TTC et indexes en USD ; ajustes localement par RevenueCat.
 
 | Produit | Prix (USD) | Description |
@@ -242,12 +300,14 @@ Tous les prix sont TTC et indexes en USD ; ajustes localement par RevenueCat.
 | **Pack de 3 Themes** | 3.99 $ | Bundle de themes saisonniers |
 | **Passe Saisonnier** | 4.99 $ | Deblocage de niveaux evenementiels, recompenses x2, pub interstitielle desactivee |
 
-### 9.5 Regles Metier
+### 9.7 Regles Metier
 - **RB-MO-01** : Aucune publicite n'est affichee aux joueurs ayant achete le Passe Saisonnier.
 - **RB-MO-02** : Les prix IAP ne depassent jamais 5 $ (strategie "abordable").
-- **RB-MO-03** : La premiere video recompensee du jour offre un bonus de 2x (2 vies au lieu de 1).
-- **RB-MO-04** : Les interstitielles sont desactivables temporairement via video recompensee (2h sans pub).
+- **RB-MO-03** : Le flux video recompensee est partage par les ecrans jeu, boutique et evenements pour garantir la coherence UX et analytique.
+- **RB-MO-04** : La reprise apres defaite utilise deux videos maximum sur un meme echec : `+1 vie` puis `+2 vies`.
 - **RB-MO-05** : L'ecran de boutique utilise des cartes organiques arrondies avec apercu 3D du produit, jamais de liste verticale grise.
+- **RB-MO-06** : Les bonus video en boutique et en evenement restent volontaires et presentent toujours la valeur recue avant lecture.
+- **RB-MO-07** : Les recompenses de maitrise gagnees sur objectifs secondaires doivent etre visibles dans l'overlay de victoire et stockees dans le meme inventaire persistant que les bonus pub.
 
 ---
 
@@ -320,6 +380,7 @@ Declenchees par Firebase Cloud Messaging + notifications locales (fallback si FC
 | `daily_reward_claim` | day_number, streak_count, reward_type |
 | `notification_open` | notification_id, delay_since_last_open |
 | `event_participate` | event_type, event_id |
+| `mastery_reward_granted` | level_id, world_id, objectives_total, objectives_completed, rewards_count, rewards |
 | `auth_link` | source (anonymous_to_google/apple/email) |
 | `cross_device_restore` | device_type_new, sync_duration_ms |
 
@@ -338,6 +399,7 @@ Declenchees par Firebase Cloud Messaging + notifications locales (fallback si FC
 - **RB-AN-02** : Les tests A/B sont actifs minimum 7 jours et necessitent 1000 joueurs par variante pour significance statistique.
 - **RB-AN-03** : Remote Config est mis a jour en temps reel (15 min max) sans necessiter de mise a jour de l'app.
 - **RB-AN-04** : Crashlytics est configure pour rapporter les crashs non-geres avec le contexte du niveau en cours.
+- **RB-AN-05** : Chaque attribution de recompense de maitrise doit emettre l'evenement `mastery_reward_granted` pour mesurer son impact sur retention, reutilisation des charges et completion des runs suivants.
 
 ---
 

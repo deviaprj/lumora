@@ -1,5 +1,42 @@
 # Décisions de design — Lumora Mobile
 
+## Session 2026-05-17
+
+### D6 : Progression hybride artisanale + procedurale
+**Décision** : Conserver une ouverture en niveaux faits main (1–10), puis basculer sur une generation procedurale infinie.
+
+**Pourquoi** : Les premiers niveaux servent de tutoriel invisible et de reference qualitative. La generation infinie prend ensuite le relais pour offrir de la rejouabilite sans attendre du contenu artisanal massif.
+
+### D7 : Regles speciales lisibles plutot qu'une complexite cachée
+**Décision** : Les paliers proceduraux introduisent des regles nommees (`Flux stable`, `Surcharge`, `Resonance`, `Blackout`) affichees directement dans l'UI.
+
+**Pourquoi** : La difficulte devient compréhensible. Le joueur sait pourquoi un niveau est plus exigeant sans avoir l'impression d'une punition arbitraire.
+
+### D8 : Une seule logique de video recompensee
+**Décision** : Centraliser la video recompensee pour le gameplay, la boutique et les evenements via le meme service AdMob.
+
+**Pourquoi** : Un pipeline unique simplifie la maintenance, la mesure analytique et garantit une UX coherente. Les pubs restent opt-in et contextuelles.
+
+### D9 : Reprise apres defaite graduelle
+**Décision** : Sur un echec, la premiere video rend 1 vie, la seconde 2 vies, puis l'offre disparait.
+
+**Pourquoi** : Cela aide a repartir sans transformer la defaite en ressource infinie. Le joueur garde une sensation de rattrapage, pas d'exploitation.
+
+### D10 : Amplification visuelle guidee par la lisibilite
+**Décision** : Renforcer les nœuds, filaments et overlays avec plus d'eclat, d'orbites et de pulses, sans ajouter de bruit fonctionnel.
+
+**Pourquoi** : L'objectif n'est pas seulement de faire plus beau, mais de rendre les points d'accroche visuels plus memorables et plus lisibles pendant l'action.
+
+### D11 : La maitrise doit etre suivie comme une boucle produit a part entiere
+**Décision** : Emmettre un evenement analytique dedie `mastery_reward_granted` au moment de la victoire, avec fallback local si Firebase n'est pas initialise.
+
+**Pourquoi** : La meta-boucle de maitrise influence directement retention, reutilisation des charges et rejouabilite. Il faut pouvoir la mesurer des maintenant sans bloquer le developpement local ni casser la build tant que la configuration Firebase mobile n'est pas dans le repo.
+
+### D12 : La world map doit montrer non seulement l'acces, mais l'etat de maitrise
+**Décision** : Ajouter sur la carte des mondes un filtre visuel de maitrise (`A gagner`, `En cours`, `Complete`) et des marqueurs differencies sur chaque bulle.
+
+**Pourquoi** : Une simple numerotation ne suffit pas a guider la rejouabilite. Le joueur doit voir instantanement quels niveaux peuvent encore enrichir son inventaire, lesquels sont partiellement maitrises, et lesquels sont totalement exploites.
+
 ## Session 2026-05-11
 
 ### D1 : Système vies/coups séparé

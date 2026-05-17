@@ -2,6 +2,19 @@
 
 ## Complété (session 2026-05-11 — gameplay fixes)
 
+## Complété (session 2026-05-17 — progression, pubs, rendu)
+
+| # | Tâche | Statut |
+|---|-------|--------|
+| 30 | Videos recompensees AdMob branchees sur la defaite | ✅ Terminé |
+| 31 | Logique pub partagee entre jeu, boutique et evenements | ✅ Terminé |
+| 32 | 10 niveaux artisanaux + progression procedurale infinie | ✅ Terminé |
+| 33 | Themes de mondes et regles speciales procedurales | ✅ Terminé |
+| 34 | Indice manuel couteux avec vrai apercu de connexion | ✅ Terminé |
+| 35 | Passe visuelle gameplay (nœuds, filaments, victoire) | ✅ Terminé |
+| 36 | Tests unitaires gameplay et progression mis a jour | ✅ Terminé |
+| 37 | Documentation produit et notice synchronisees | ✅ Terminé |
+
 | # | Tâche | Statut |
 |---|-------|--------|
 | 1 | Fix anchor/Offset.zero (EnergyNode + LumieComponent) | ✅ Terminé |
@@ -56,14 +69,13 @@
 
 ## Prochaine session (prioritaire)
 
-1. **Mettre à jour les tests unitaires** : game_state_test.dart et game_interaction_test.dart doivent refléter le nouveau système lives/attempts (attemptsPerLife, attemptsRemaining).
-2. **Overlay défaite enrichi** : Afficher les tentatives restantes et info coups dans l'overlay de défaite GameScreen.
-3. **Assets parallax PNG** : Remplacer le fond procédural par de vrais assets PNG quand disponibles.
-4. **Firebase Auth** : Brancher l'authentification (Google/Apple/Email/Anonymous).
-5. **Progression persistante** : Sauvegarder le completedLevelId en SharedPreferences pour que la World Map reflète la progression.
-6. **Stabiliser tests device** : Relancer les 15 tests integration + ajouter tests lives/attempts.
-7. **Fonts** : Bundler Nunito (référencé dans theme mais pas dans pubspec).
-8. **World 2+ niveaux** : Ajouter des niveaux pour les mondes suivants avec difficulté croissante.
+1. **Persistance des bonus pubs** : relier les bonus boutique/evenements a un inventaire joueur persistant.
+2. **Assets parallax PNG** : remplacer le fond procédural par de vrais assets PNG quand disponibles.
+3. **Firebase Auth** : brancher l'authentification (Google/Apple/Email/Anonymous).
+4. **Progression persistante** : sauvegarder le completedLevelId et les themes/règles vues en SharedPreferences.
+5. **Stabiliser tests device** : relancer les 15 tests integration et couvrir les flows video recompensee.
+6. **Fonts** : bundler Nunito (référencé dans theme mais pas dans pubspec).
+7. **Economy tuning** : calibrer les paliers `Surcharge/Resonance/Blackout` via analytics et Remote Config.
 
 ## Backlog
 

@@ -1,7 +1,9 @@
 import 'dart:math';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
+import '../../monetization/data/reward_inventory.dart';
 import '../../../shared/widgets/lumora_button.dart';
 import '../domain/level_data.dart';
 
@@ -10,6 +12,20 @@ enum LevelProgress {
   locked,
   available,
   completed,
+}
+
+enum MasteryMapFilter {
+  all,
+  remaining,
+  partial,
+  complete,
+}
+
+enum MasteryRewardState {
+  none,
+  remaining,
+  partial,
+  complete,
 }
 
 /// Carte des mondes — niveaux affichés comme bulles flottantes reliées
@@ -27,6 +43,8 @@ class WorldMapScreen extends StatefulWidget {
 class _WorldMapScreenState extends State<WorldMapScreen>
     with TickerProviderStateMixin {
   int get _completedLevelId => widget.completedLevelId;
+  late final RewardInventory _rewardInventory;
+  MasteryMapFilter _masteryFilter = MasteryMapFilter.all;
 
   // Animation controllers pour les bulles flottantes
   late List<AnimationController> _floatControllers;
@@ -34,8 +52,12 @@ class _WorldMapScreenState extends State<WorldMapScreen>
   @override
   void initState() {
     super.initState();
+    _rewardInventory = RewardInventory.instance;
+    _rewardInventory.addListener(_onInventoryChanged);
+    unawaited(_rewardInventory.load());
+    final levels = _visibleLevels;
     _floatControllers = List.generate(
-      World1Levels.levels.length,
+      levels.length,
       (index) => AnimationController(
         vsync: this,
         duration: Duration(milliseconds: 2000 + index * 200),
@@ -43,8 +65,24 @@ class _WorldMapScreenState extends State<WorldMapScreen>
     );
   }
 
+  List<LevelData> get _visibleLevels {
+    final visibleCount = max(World1Levels.levels.length, _completedLevelId + 1);
+    return List<LevelData>.generate(
+      visibleCount,
+      (index) => LevelCatalog.byId(index + 1),
+      growable: false,
+    );
+  }
+
+  void _onInventoryChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   void dispose() {
+    _rewardInventory.removeListener(_onInventoryChanged);
     for (final c in _floatControllers) {
       c.dispose();
     }
@@ -60,7 +98,20 @@ class _WorldMapScreenState extends State<WorldMapScreen>
 
   @override
   Widget build(BuildContext context) {
-    final levels = World1Levels.levels;
+    final levels = _visibleLevels;
+    final levelsWithPendingMastery = levels
+        .where((level) => _progressForLevel(level.id) != LevelProgress.locked)
+        .where((level) => _rewardInventory.hasRemainingSecondaryObjectiveRewards(level))
+        .length;
+    final levelsWithPartialMastery = levels
+      .where((level) => _progressForLevel(level.id) != LevelProgress.locked)
+      .where((level) => _masteryStateForLevel(level) == MasteryRewardState.partial)
+      .length;
+    final levelsWithCompleteMastery = levels
+      .where((level) => _progressForLevel(level.id) != LevelProgress.locked)
+      .where((level) => _masteryStateForLevel(level) == MasteryRewardState.complete)
+      .length;
+    final nextRelevantLevel = _nextRelevantLevel(levels);
 
     return Scaffold(
       body: Container(
@@ -110,9 +161,70 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                       const Spacer(),
                       Text('Carte des Mondes', style: LumoraTextStyles.titleLarge()),
                       const Spacer(),
-                      const SizedBox(width: 44),
+                      if (levelsWithPendingMastery > 0)
+                        _MasteryMapCounter(levelCount: levelsWithPendingMastery)
+                      else
+                        const SizedBox(width: 44),
                     ],
                   ),
+                ),
+              ),
+
+              Positioned(
+                top: 72,
+                left: 12,
+                right: 12,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _MasteryFilterChip(
+                            label: 'Tout',
+                            count: levels.length,
+                            selected: _masteryFilter == MasteryMapFilter.all,
+                            accent: LumoraColors.auroraBlue,
+                            onTap: () => setState(() => _masteryFilter = MasteryMapFilter.all),
+                          ),
+                          const SizedBox(width: 8),
+                          _MasteryFilterChip(
+                            label: 'À gagner',
+                            count: levelsWithPendingMastery,
+                            selected: _masteryFilter == MasteryMapFilter.remaining,
+                            accent: LumoraColors.auroraPurple,
+                            onTap: () => setState(() => _masteryFilter = MasteryMapFilter.remaining),
+                          ),
+                          const SizedBox(width: 8),
+                          _MasteryFilterChip(
+                            label: 'En cours',
+                            count: levelsWithPartialMastery,
+                            selected: _masteryFilter == MasteryMapFilter.partial,
+                            accent: LumoraColors.energyAmber,
+                            onTap: () => setState(() => _masteryFilter = MasteryMapFilter.partial),
+                          ),
+                          const SizedBox(width: 8),
+                          _MasteryFilterChip(
+                            label: 'Complète',
+                            count: levelsWithCompleteMastery,
+                            selected: _masteryFilter == MasteryMapFilter.complete,
+                            accent: LumoraColors.auroraGreen,
+                            onTap: () => setState(() => _masteryFilter = MasteryMapFilter.complete),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (nextRelevantLevel != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: _JumpToRelevantLevelChip(
+                          levelId: nextRelevantLevel.id,
+                          filter: _masteryFilter,
+                          onTap: () => context.go('/game', extra: nextRelevantLevel),
+                        ),
+                      ),
+                  ],
                 ),
               ),
 
@@ -127,6 +239,8 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                     _LegendDot(color: LumoraColors.auroraGold, label: 'Complété'),
                     const SizedBox(width: 16),
                     _LegendDot(color: LumoraColors.auroraGreen, label: 'Disponible'),
+                    const SizedBox(width: 16),
+                    _LegendDot(color: LumoraColors.auroraPurple, label: 'Maîtrise restante'),
                     const SizedBox(width: 16),
                     _LegendDot(color: LumoraColors.lockOverlay, label: 'Verrouillé'),
                   ],
@@ -147,6 +261,12 @@ class _WorldMapScreenState extends State<WorldMapScreen>
       final level = levels[i];
       final progress = _progressForLevel(level.id);
       final pos = _levelPosition(i, levels.length, size);
+      final pendingMasteryCount = progress == LevelProgress.locked
+          ? 0
+          : _rewardInventory.remainingSecondaryObjectiveRewardCount(level);
+      final masteryState = _masteryStateForLevel(level);
+      final isVisibleForFilter = _matchesMasteryFilter(level, masteryState);
+      final canNavigate = progress != LevelProgress.locked && isVisibleForFilter;
 
       bubbles.add(
         Positioned(
@@ -158,12 +278,17 @@ class _WorldMapScreenState extends State<WorldMapScreen>
               final floatOffset = _floatControllers[i].value * 4 - 2;
               return Transform.translate(
                 offset: Offset(0, floatOffset),
-                child: _LevelBubble(
-                  level: level,
-                  progress: progress,
-                  onTap: progress != LevelProgress.locked
-                      ? () => context.go('/game', extra: level)
-                      : null,
+                child: Opacity(
+                  opacity: isVisibleForFilter ? 1.0 : 0.18,
+                  child: _LevelBubble(
+                    level: level,
+                    progress: progress,
+                    masteryState: masteryState,
+                    pendingMasteryCount: pendingMasteryCount,
+                    onTap: canNavigate
+                        ? () => context.go('/game', extra: level)
+                        : null,
+                  ),
                 ),
               );
             },
@@ -189,17 +314,82 @@ class _WorldMapScreenState extends State<WorldMapScreen>
 
     return Offset(x, y);
   }
+
+  MasteryRewardState _masteryStateForLevel(LevelData level) {
+    if (level.secondaryObjectives.isEmpty || _progressForLevel(level.id) == LevelProgress.locked) {
+      return MasteryRewardState.none;
+    }
+
+    final total = _rewardInventory.totalSecondaryObjectiveRewardCount(level);
+    final claimed = _rewardInventory.claimedSecondaryObjectiveRewardCount(level);
+    final remaining = _rewardInventory.remainingSecondaryObjectiveRewardCount(level);
+
+    if (remaining == 0 && total > 0) {
+      return MasteryRewardState.complete;
+    }
+    if (claimed > 0 && remaining > 0) {
+      return MasteryRewardState.partial;
+    }
+    if (remaining > 0) {
+      return MasteryRewardState.remaining;
+    }
+    return MasteryRewardState.none;
+  }
+
+  bool _matchesMasteryFilter(LevelData level, MasteryRewardState masteryState) {
+    if (_progressForLevel(level.id) == LevelProgress.locked) {
+      return _masteryFilter == MasteryMapFilter.all;
+    }
+
+    switch (_masteryFilter) {
+      case MasteryMapFilter.all:
+        return true;
+      case MasteryMapFilter.remaining:
+        return masteryState == MasteryRewardState.remaining;
+      case MasteryMapFilter.partial:
+        return masteryState == MasteryRewardState.partial;
+      case MasteryMapFilter.complete:
+        return masteryState == MasteryRewardState.complete;
+    }
+  }
+
+  LevelData? _nextRelevantLevel(List<LevelData> levels) {
+    final candidates = levels.where((level) {
+      final progress = _progressForLevel(level.id);
+      if (progress == LevelProgress.locked) {
+        return false;
+      }
+      return _matchesMasteryFilter(level, _masteryStateForLevel(level));
+    }).toList(growable: false);
+
+    if (candidates.isEmpty) {
+      return null;
+    }
+
+    final currentThreshold = _completedLevelId + 1;
+    for (final candidate in candidates) {
+      if (candidate.id >= currentThreshold) {
+        return candidate;
+      }
+    }
+
+    return candidates.first;
+  }
 }
 
 /// Bulle de niveau sur la carte — avec glow animé.
 class _LevelBubble extends StatelessWidget {
   final LevelData level;
   final LevelProgress progress;
+  final MasteryRewardState masteryState;
+  final int pendingMasteryCount;
   final VoidCallback? onTap;
 
   const _LevelBubble({
     required this.level,
     required this.progress,
+    required this.masteryState,
+    required this.pendingMasteryCount,
     this.onTap,
   });
 
@@ -221,43 +411,279 @@ class _LevelBubble extends StatelessWidget {
             ? LumoraColors.auroraGreen
             : LumoraColors.lockOverlay;
 
+    final ringColor = switch (masteryState) {
+      MasteryRewardState.remaining => LumoraColors.auroraPurple,
+      MasteryRewardState.partial => LumoraColors.energyAmber,
+      MasteryRewardState.complete => LumoraColors.auroraGreen,
+      MasteryRewardState.none => Colors.transparent,
+    };
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: ringColor == Colors.transparent
+                  ? null
+                  : Border.all(color: ringColor.withAlpha(210), width: 2.2),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: gradientColors,
+              ),
+              boxShadow: isLocked
+                  ? []
+                  : [
+                      BoxShadow(
+                        color: glowColor.withAlpha(isAvailable ? 100 : 80),
+                        blurRadius: 16,
+                        spreadRadius: isAvailable ? 2 : -2,
+                        offset: const Offset(0, 4),
+                      ),
+                      if (isAvailable)
+                        BoxShadow(
+                          color: glowColor.withAlpha(40),
+                          blurRadius: 30,
+                          spreadRadius: 4,
+                          offset: const Offset(0, 0),
+                        ),
+                    ],
+            ),
+            child: Center(
+              child: isLocked
+                  ? Icon(Icons.lock_rounded, color: LumoraColors.disabledMist, size: 20)
+                  : Text(
+                      '${level.id}',
+                      style: LumoraTextStyles.label(color: LumoraColors.pearl).copyWith(fontSize: 16),
+                    ),
+            ),
+          ),
+          if (pendingMasteryCount > 0)
+            Positioned(
+              right: -4,
+              top: -6,
+              child: _MasteryRewardBadge(count: pendingMasteryCount),
+            ),
+          if (masteryState == MasteryRewardState.partial)
+            Positioned(
+              left: -4,
+              bottom: -4,
+              child: _MasteryStatusMarker(
+                icon: Icons.timelapse_rounded,
+                accent: LumoraColors.energyAmber,
+              ),
+            ),
+          if (masteryState == MasteryRewardState.complete)
+            Positioned(
+              left: -4,
+              bottom: -4,
+              child: _MasteryStatusMarker(
+                icon: Icons.check_rounded,
+                accent: LumoraColors.auroraGreen,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MasteryStatusMarker extends StatelessWidget {
+  final IconData icon;
+  final Color accent;
+
+  const _MasteryStatusMarker({
+    required this.icon,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 18,
+      height: 18,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: accent,
+        boxShadow: [
+          BoxShadow(
+            color: accent.withAlpha(120),
+            blurRadius: 10,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Icon(icon, size: 12, color: Colors.white),
+    );
+  }
+}
+
+class _MasteryRewardBadge extends StatelessWidget {
+  final int count;
+
+  const _MasteryRewardBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(LumoraRadii.bubble),
+        gradient: LinearGradient(
+          colors: [LumoraColors.auroraPurple, LumoraColors.auroraPink],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: LumoraColors.auroraPurple.withAlpha(110),
+            blurRadius: 14,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Text(
+        '$count',
+        style: LumoraTextStyles.label(color: Colors.white),
+      ),
+    );
+  }
+}
+
+class _MasteryMapCounter extends StatelessWidget {
+  final int levelCount;
+
+  const _MasteryMapCounter({required this.levelCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(LumoraRadii.bubble),
+        color: LumoraColors.auroraPurple.withAlpha(36),
+        border: Border.all(color: LumoraColors.auroraPurple.withAlpha(90)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const Icon(
+            Icons.workspace_premium_rounded,
+            color: Colors.white,
+            size: 14,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '$levelCount maitrise',
+            style: LumoraTextStyles.label(color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MasteryFilterChip extends StatelessWidget {
+  final String label;
+  final int count;
+  final bool selected;
+  final Color accent;
+  final VoidCallback onTap;
+
+  const _MasteryFilterChip({
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.accent,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(LumoraRadii.bubble),
+          color: selected ? accent.withAlpha(46) : Colors.white.withAlpha(12),
+          border: Border.all(
+            color: selected ? accent.withAlpha(120) : Colors.white.withAlpha(30),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: LumoraTextStyles.label(color: Colors.white),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(LumoraRadii.bubble),
+                color: accent.withAlpha(selected ? 80 : 36),
+              ),
+              child: Text(
+                '$count',
+                style: LumoraTextStyles.label(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _JumpToRelevantLevelChip extends StatelessWidget {
+  final int levelId;
+  final MasteryMapFilter filter;
+  final VoidCallback onTap;
+
+  const _JumpToRelevantLevelChip({
+    required this.levelId,
+    required this.filter,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final label = switch (filter) {
+      MasteryMapFilter.all => 'Reprendre au niveau $levelId',
+      MasteryMapFilter.remaining => 'Prochain niveau à maîtriser: $levelId',
+      MasteryMapFilter.partial => 'Reprendre la maîtrise du niveau $levelId',
+      MasteryMapFilter.complete => 'Voir une maîtrise complète: $levelId',
+    };
+
+    final accent = switch (filter) {
+      MasteryMapFilter.all => LumoraColors.auroraBlue,
+      MasteryMapFilter.remaining => LumoraColors.auroraPurple,
+      MasteryMapFilter.partial => LumoraColors.energyAmber,
+      MasteryMapFilter.complete => LumoraColors.auroraGreen,
+    };
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 56,
-        height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: gradientColors,
-          ),
-          boxShadow: isLocked
-              ? []
-              : [
-                  BoxShadow(
-                    color: glowColor.withAlpha(isAvailable ? 100 : 80),
-                    blurRadius: 16,
-                    spreadRadius: isAvailable ? 2 : -2,
-                    offset: const Offset(0, 4),
-                  ),
-                  if (isAvailable)
-                    BoxShadow(
-                      color: glowColor.withAlpha(40),
-                      blurRadius: 30,
-                      spreadRadius: 4,
-                      offset: const Offset(0, 0),
-                    ),
-                ],
+          borderRadius: BorderRadius.circular(LumoraRadii.bubble),
+          color: accent.withAlpha(34),
+          border: Border.all(color: accent.withAlpha(96)),
         ),
-        child: Center(
-          child: isLocked
-              ? Icon(Icons.lock_rounded, color: LumoraColors.disabledMist, size: 20)
-              : Text(
-                  '${level.id}',
-                  style: LumoraTextStyles.label(color: LumoraColors.pearl).copyWith(fontSize: 16),
-                ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.navigation_rounded, color: Colors.white, size: 15),
+            const SizedBox(width: 8),
+            Text(label, style: LumoraTextStyles.label(color: Colors.white)),
+          ],
         ),
       ),
     );
