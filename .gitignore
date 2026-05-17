@@ -1,0 +1,61 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub/
+build/
+
+# Coverage and reports
+coverage/
+*.lcov
+
+# Flutter generated registrant (web)
+lib/generated_plugin_registrant.dart
+
+# Android
+**/android/.gradle/
+**/android/captures/
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+*.apk
+*.aab
+*.ap_
+
+# iOS / macOS
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/ephemeral/
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Runner.xcworkspace/
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/macos/Flutter/ephemeral/
+
+# Linux / Windows build outputs
+linux/flutter/ephemeral/
+windows/flutter/ephemeral/
+
+# Node.js (backend/functions)
+node_modules/
+backend/functions/node_modules/
+backend/functions/.npm/
+
+# IDE / Editor
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/settings.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs / temp
+*.log
+*.tmp
+*.swp
+*.swo

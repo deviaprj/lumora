@@ -1,0 +1,168 @@
+name: CD Lumora — Deploy to Stores
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      lane_android:
+        description: 'Fastlane Android lane'
+        required: true
+        default: 'internal'
+        type: choice
+        options:
+          - internal
+          - beta
+          - production
+      lane_ios:
+        description: 'Fastlane iOS lane'
+        required: true
+        default: 'beta'
+        type: choice
+        options:
+          - beta
+          - release
+      deploy_backend:
+        description: 'Deploy Cloud Functions'
+        required: true
+        default: true
+        type: boolean
+
+env:
+  FLUTTER_VERSION: '3.24.x'
+
+jobs:
+  deploy-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Ruby & Bundler
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          working-directory: lumora-mobile
+
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/keystore.jks
+        working-directory: lumora-mobile
+
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: lumora-mobile
+
+      - name: Generate code
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+        working-directory: lumora-mobile
+
+      - name: Run Fastlane Android
+        run: bundle exec fastlane ${{ github.event.inputs.lane_android || 'internal' }}
+        working-directory: lumora-mobile/android
+        env:
+          SUPPLY_JSON_KEY_DATA: ${{ secrets.GOOGLE_PLAY_JSON_KEY }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ADMOB_ANDROID_APP_ID: ${{ secrets.ADMOB_ANDROID_APP_ID }}
+          REVENUECAT_ANDROID_KEY: ${{ secrets.REVENUECAT_ANDROID_KEY }}
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lumora-android-aab
+          path: lumora-mobile/build/app/outputs/bundle/release/*.aab
+
+      - name: Cleanup Keystore
+        if: always()
+        run: rm -f android/app/keystore.jks
+        working-directory: lumora-mobile
+
+      - name: Notify Slack/Discord
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          MESSAGE="Android CD \`${{ github.event.inputs.lane_android || 'internal' }}\` finished with status: $STATUS"
+          if [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data "{\"text\":\"$MESSAGE\"}" \
+              ${{ secrets.SLACK_WEBHOOK_URL }} || true
+          fi
+          if [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data "{\"content\":\"$MESSAGE\"}" \
+              ${{ secrets.DISCORD_WEBHOOK_URL }} || true
+          fi
+
+  deploy-ios:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+
+      - name: Setup Ruby & Bundler
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          working-directory: lumora-mobile
+
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: lumora-mobile
+
+      - name: Generate code
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+        working-directory: lumora-mobile
+
+      - name: Run Fastlane iOS
+        run: bundle exec fastlane ${{ github.event.inputs.lane_ios || 'beta' }}
+        working-directory: lumora-mobile/ios
+        env:
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+          REVENUECAT_IOS_KEY: ${{ secrets.REVENUECAT_IOS_KEY }}
+          ADMOB_IOS_APP_ID: ${{ secrets.ADMOB_IOS_APP_ID }}
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+
+      - name: Notify Slack/Discord
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          MESSAGE="iOS CD \`${{ github.event.inputs.lane_ios || 'beta' }}\` finished with status: $STATUS"
+          if [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data "{\"text\":\"$MESSAGE\"}" \
+              ${{ secrets.SLACK_WEBHOOK_URL }} || true
+          fi
+          if [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data "{\"content\":\"$MESSAGE\"}" \
+              ${{ secrets.DISCORD_WEBHOOK_URL }} || true
+          fi

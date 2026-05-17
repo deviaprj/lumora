@@ -1,0 +1,75 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flame/flame.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'app/router.dart';
+import 'app/theme.dart';
+
+/// Entry point Lumora — initialise Firebase, Flame, AdMob, RevenueCat puis runApp.
+///
+/// Les SDKs Firebase/AdMob/RevenueCat ne sont initialisés que lorsque les
+/// clés sont fournies via `--dart-define`. Sur Linux desktop (développement)
+/// ou si les clés manquent, l'application continue sans eux.
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Orientation portrait uniquement (mobile)
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  // Initialisation Flame (assets, device, fullscreen)
+  await Flame.device.fullScreen();
+  await Flame.device.setOrientation(DeviceOrientation.portraitUp);
+
+  // Initialisation conditionnelle des SDK tiers
+  await _initializeThirdPartySDKs();
+
+  runApp(
+    const ProviderScope(
+      child: LumoraApp(),
+    ),
+  );
+}
+
+Future<void> _initializeThirdPartySDKs() async {
+  try {
+    // Firebase — initialisé uniquement si la configuration est présente
+    const firebaseApiKey = String.fromEnvironment('FIREBASE_API_KEY');
+    if (firebaseApiKey.isNotEmpty && !Platform.isLinux) {
+      // TODO: await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    }
+
+    // AdMob — initialisé uniquement sur mobile et si la clé est présente
+    const admobAppId = String.fromEnvironment('ADMOB_ANDROID_APP_ID');
+    if (admobAppId.isNotEmpty && (Platform.isAndroid || Platform.isIOS)) {
+      // TODO: await MobileAds.instance.initialize();
+    }
+
+    // RevenueCat — initialisé uniquement sur mobile et si la clé est présente
+    const revenueCatKey = String.fromEnvironment('REVENUECAT_ANDROID_KEY');
+    if (revenueCatKey.isNotEmpty && (Platform.isAndroid || Platform.isIOS)) {
+      // TODO: await Purchases.configure(PurchasesConfiguration(revenueCatKey));
+    }
+  } catch (e) {
+    // En développement, les SDK peuvent ne pas être disponibles
+    debugPrint('Third-party SDK initialization skipped or failed: $e');
+  }
+}
+
+class LumoraApp extends StatelessWidget {
+  const LumoraApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
+      title: 'Lumora',
+      debugShowCheckedModeBanner: false,
+      theme: LumoraTheme.darkTheme,
+      routerConfig: appRouter,
+    );
+  }
+}

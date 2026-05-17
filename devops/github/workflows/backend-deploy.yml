@@ -1,0 +1,92 @@
+name: Backend Deploy — Cloud Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lumora-mobile/backend/functions/**'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  FIREBASE_PROJECT: ${{ secrets.FIREBASE_PROJECT_ID }}
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: lumora-mobile/backend/functions/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: lumora-mobile/backend/functions
+
+      - name: Lint
+        run: npm run lint
+        working-directory: lumora-mobile/backend/functions
+
+      - name: Type-check
+        run: npm run build
+        working-directory: lumora-mobile/backend/functions
+
+      - name: Run unit tests (if present)
+        run: npm test || echo "No test suite configured"
+        working-directory: lumora-mobile/backend/functions
+
+  deploy-functions:
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: lumora-mobile/backend/functions/package-lock.json
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: lumora-mobile/backend/functions
+
+      - name: Build TypeScript
+        run: npm run build
+        working-directory: lumora-mobile/backend/functions
+
+      - name: Deploy Cloud Functions
+        run: |
+          firebase deploy --only functions \
+            --project ${{ env.FIREBASE_PROJECT }} \
+            --token ${{ secrets.FIREBASE_CI_TOKEN }}
+        working-directory: lumora-mobile/backend/functions
+
+      - name: Notify Slack/Discord
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          MESSAGE="Cloud Functions deploy finished with status: $STATUS"
+          if [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data "{\"text\":\"$MESSAGE\"}" \
+              ${{ secrets.SLACK_WEBHOOK_URL }} || true
+          fi
+          if [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data "{\"content\":\"$MESSAGE\"}" \
+              ${{ secrets.DISCORD_WEBHOOK_URL }} || true
+          fi

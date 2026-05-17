@@ -1,0 +1,40 @@
+default_platform(:android)
+
+platform :android do
+  desc "Run Flutter tests"
+  lane :test do
+    flutter_command("test --tags unit,widget")
+  end
+
+  desc "Build debug APK"
+  lane :build_debug do
+    flutter_command("build apk --debug")
+  end
+
+  desc "Deploy to Play Store Internal"
+  lane :internal do
+    flutter_command("build appbundle --release")
+    upload_to_play_store(
+      track: 'internal',
+      aab: '../build/app/outputs/bundle/release/app-release.aab'
+    )
+  end
+
+  desc "Deploy to Play Store Beta"
+  lane :beta do
+    flutter_command("build appbundle --release")
+    upload_to_play_store(
+      track: 'beta',
+      aab: '../build/app/outputs/bundle/release/app-release.aab'
+    )
+  end
+
+  desc "Deploy to Play Store Production"
+  lane :production do
+    flutter_command("build appbundle --release")
+    upload_to_play_store(
+      track: 'production',
+      aab: '../build/app/outputs/bundle/release/app-release.aab'
+    )
+  end
+end

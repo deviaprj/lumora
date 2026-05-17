@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <!-- Gradient de fond profond -->
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#1A1A4E"/>
+      <stop offset="50%" stop-color="#302B63"/>
+      <stop offset="100%" stop-color="#0F0C29"/>
+    </radialGradient>
+
+    <!-- Gradient de l'étoile principale (vert-bleu aurora) -->
+    <radialGradient id="starGlow" cx="45%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="25%" stop-color="#80FFE0"/>
+      <stop offset="55%" stop-color="#00F5A0"/>
+      <stop offset="80%" stop-color="#00D9F5"/>
+      <stop offset="100%" stop-color="#00D9F5" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Halo externe -->
+    <radialGradient id="haloGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00F5A0" stop-opacity="0.6"/>
+      <stop offset="40%" stop-color="#00D9F5" stop-opacity="0.25"/>
+      <stop offset="70%" stop-color="#9D4EDD" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#9D4EDD" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Gradient des rayons lumineux -->
+    <radialGradient id="rayGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9"/>
+      <stop offset="20%" stop-color="#80FFE0" stop-opacity="0.5"/>
+      <stop offset="60%" stop-color="#00F5A0" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#00D9F5" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Petites étoiles scintillantes -->
+    <radialGradient id="tinyStar" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="40%" stop-color="#FFFFFF" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Filtre de flou pour le glow -->
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="12"/>
+    </filter>
+
+    <filter id="bigGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="35"/>
+    </filter>
+
+    <filter id="medGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="8"/>
+    </filter>
+  </defs>
+
+  <!-- Fond circulaire profond -->
+  <circle cx="512" cy="512" r="512" fill="url(#bgGrad)"/>
+
+  <!-- Halo externe large (très diffus) -->
+  <circle cx="512" cy="512" r="320" fill="url(#haloGrad)" filter="url(#bigGlow)"/>
+
+  <!-- Rayons lumineux organiques (8 rayons avec variation) -->
+  <g opacity="0.5" filter="url(#medGlow)">
+    <!-- Rayon 1 - haut -->
+    <path d="M512 200 L505 380 L519 380 Z" fill="#00F5A0" opacity="0.7"/>
+    <!-- Rayon 2 - haut-droite -->
+    <path d="M680 280 L555 395 L560 405 Z" fill="#00D9F5" opacity="0.5"/>
+    <!-- Rayon 3 - droite -->
+    <path d="M780 480 L600 495 L600 510 Z" fill="#00F5A0" opacity="0.6"/>
+    <!-- Rayon 4 - bas-droite -->
+    <path d="M700 680 L570 555 L575 545 Z" fill="#00D9F5" opacity="0.5"/>
+    <!-- Rayon 5 - bas -->
+    <path d="M512 790 L519 590 L505 590 Z" fill="#00F5A0" opacity="0.7"/>
+    <!-- Rayon 6 - bas-gauche -->
+    <path d="M310 700 L445 560 L440 550 Z" fill="#00D9F5" opacity="0.5"/>
+    <!-- Rayon 7 - gauche -->
+    <path d="M220 500 L410 495 L410 510 Z" fill="#00F5A0" opacity="0.6"/>
+    <!-- Rayon 8 - haut-gauche -->
+    <path d="M310 290 L440 400 L435 410 Z" fill="#00D9F5" opacity="0.5"/>
+  </g>
+
+  <!-- Rayons secondaires plus fins -->
+  <g opacity="0.35" filter="url(#softGlow)">
+    <path d="M512 170 L508 360 L516 360 Z" fill="#FFFFFF"/>
+    <path d="M512 810 L508 620 L516 620 Z" fill="#FFFFFF"/>
+    <path d="M170 512 L360 508 L360 516 Z" fill="#FFFFFF"/>
+    <path d="M810 512 L620 508 L620 516 Z" fill="#FFFFFF"/>
+    <!-- Diagonales plus subtiles -->
+    <path d="M300 300 L420 420 L425 415 Z" fill="#FFFFFF" opacity="0.5"/>
+    <path d="M724 300 L600 415 L605 420 Z" fill="#FFFFFF" opacity="0.5"/>
+    <path d="M300 724 L415 600 L420 605 Z" fill="#FFFFFF" opacity="0.5"/>
+    <path d="M724 724 L605 600 L600 605 Z" fill="#FFFFFF" opacity="0.5"/>
+  </g>
+
+  <!-- Étoile centrale - forme organique avec 4 pointes douces -->
+  <g filter="url(#softGlow)">
+    <path d="M512 320
+             C530 380, 560 410, 620 430
+             C560 450, 530 480, 512 540
+             C494 480, 464 450, 404 430
+             C464 410, 494 380, 512 320Z"
+          fill="url(#starGlow)" opacity="0.95"/>
+  </g>
+
+  <!-- Étoile centrale - couche intérieure plus petite et plus brillante -->
+  <g filter="url(#medGlow)">
+    <path d="M512 380
+             C520 420, 540 440, 580 455
+             C540 470, 520 490, 512 530
+             C504 490, 484 470, 444 455
+             C484 440, 504 420, 512 380Z"
+          fill="#FFFFFF" opacity="0.85"/>
+  </g>
+
+  <!-- Point central lumineux -->
+  <circle cx="512" cy="455" r="18" fill="#FFFFFF" opacity="0.95" filter="url(#medGlow)"/>
+  <circle cx="512" cy="455" r="8" fill="#FFFFFF"/>
+
+  <!-- Étoiles scintillantes autour -->
+  <!-- Étoile haut-droite -->
+  <circle cx="680" cy="250" r="12" fill="url(#tinyStar)" filter="url(#softGlow)"/>
+  <circle cx="680" cy="250" r="3" fill="#FFFFFF" opacity="0.9"/>
+
+  <!-- Étoile bas-gauche -->
+  <circle cx="320" cy="700" r="10" fill="url(#tinyStar)" filter="url(#softGlow)"/>
+  <circle cx="320" cy="700" r="2.5" fill="#FFFFFF" opacity="0.8"/>
+
+  <!-- Étoile haut-gauche -->
+  <circle cx="260" cy="340" r="8" fill="url(#tinyStar)" filter="url(#softGlow)"/>
+  <circle cx="260" cy="340" r="2" fill="#FFFFFF" opacity="0.7"/>
+
+  <!-- Étoile bas-droite -->
+  <circle cx="750" cy="680" r="9" fill="url(#tinyStar)" filter="url(#softGlow)"/>
+  <circle cx="750" cy="680" r="2" fill="#FFFFFF" opacity="0.75"/>
+
+  <!-- Étoile haut centre -->
+  <circle cx="430" cy="220" r="6" fill="url(#tinyStar)" filter="url(#softGlow)"/>
+  <circle cx="430" cy="220" r="1.5" fill="#FFFFFF" opacity="0.6"/>
+
+  <!-- Étoile bas centre -->
+  <circle cx="600" cy="790" r="7" fill="url(#tinyStar)" filter="url(#softGlow)"/>
+  <circle cx="600" cy="790" r="1.8" fill="#FFFFFF" opacity="0.65"/>
+
+  <!-- Micro-étoiles -->
+  <circle cx="180" cy="520" r="3" fill="#FFFFFF" opacity="0.4"/>
+  <circle cx="840" cy="400" r="2.5" fill="#FFFFFF" opacity="0.35"/>
+  <circle cx="380" cy="800" r="3" fill="#FFFFFF" opacity="0.3"/>
+  <circle cx="700" cy="180" r="2" fill="#FFFFFF" opacity="0.25"/>
+  <circle cx="200" cy="250" r="2" fill="#FFFFFF" opacity="0.2"/>
+  <circle cx="830" cy="600" r="2.5" fill="#FFFFFF" opacity="0.3"/>
+  <circle cx="450" cy="150" r="1.5" fill="#FFFFFF" opacity="0.2"/>
+  <circle cx="150" cy="700" r="2" fill="#FFFFFF" opacity="0.25"/>
+  <circle cx="900" cy="300" r="1.5" fill="#FFFFFF" opacity="0.15"/>
+  <circle cx="350" cy="180" r="2" fill="#FFFFFF" opacity="0.2"/>
+  <circle cx="780" cy="800" r="2" fill="#FFFFFF" opacity="0.2"/>
+  <circle cx="250" cy="600" r="1.5" fill="#FFFFFF" opacity="0.2"/>
+</svg>

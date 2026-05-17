@@ -1,0 +1,32 @@
+{
+  "hintSystem": {
+    "defaultValue": {
+      "value": "{\"delay\":15,\"opacity\":0.9,\"frequency\":1,\"tier\":1}"
+    }
+  },
+  "ad_interstitial_every_n_levels": {
+    "defaultValue": {
+      "value": "5"
+    }
+  },
+  "iap_prices_tier_a": {
+    "defaultValue": {
+      "value": "0.99"
+    }
+  },
+  "iap_prices_tier_b": {
+    "defaultValue": {
+      "value": "2.99"
+    }
+  },
+  "iap_prices_tier_c": {
+    "defaultValue": {
+      "value": "4.99"
+    }
+  },
+  "difficulty_curve_multiplier": {
+    "defaultValue": {
+      "value": "1.0"
+    }
+  }
+}

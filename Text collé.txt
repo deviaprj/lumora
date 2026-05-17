@@ -1,0 +1,604 @@
+# PROMPT CLAUDE CODE — UPGRADE VISUEL COMPLET LUMORA
+
+## CONTEXTE DU PROJET
+
+Tu travailles sur **Lumora**, un jeu de puzzle-réflexion mobile en React Native/Expo. Le jeu est fonctionnel mais les graphismes actuels sont basiques. Ta mission est de transformer complètement l'expérience visuelle pour atteindre un niveau AAA mobile avec des effets époustouflants.
+
+**Documents de référence obligatoires :**
+- Lis d'abord `notice.md` et `GDD_Resume.md` pour comprendre l'univers, l'ambiance et les spécifications exactes
+- Tous les choix visuels doivent respecter l'identité du jeu : organique, lumineux, apaisant, sans bords droits
+
+## RÈGLES DE TRAVAIL STRICTES
+
+1. **AUTONOMIE TOTALE** : Tu installes, configures et implémente TOUT ce qui est nécessaire sans demander de confirmation
+2. **ZÉRO CODE INCOMPLET** : Chaque feature doit être 100% fonctionnelle et production-ready avant de passer à la suivante
+3. **PERFORMANCE OBLIGATOIRE** : Vise 60 FPS constant sur mobile moyen-gamme (optimise avec useMemo, useCallback, React.memo)
+4. **BIBLIOTHÈQUES GRATUITES UNIQUEMENT** : Open-source ou gratuites pour usage commercial
+5. **DOCUMENTATION INLINE** : Commente le code complexe pour faciliter la maintenance
+
+## ARCHITECTURE TECHNIQUE OBLIGATOIRE
+
+### Stack de base à installer/configurer
+```bash
+# Animations et performances
+expo install react-native-reanimated
+expo install react-native-gesture-handler
+
+# Effets visuels 2D/3D
+expo install react-native-skia @shopify/react-native-skia
+expo install expo-gl expo-three three
+
+# Particules et effets
+npm install react-native-particle-system
+npm install react-native-animatable
+
+# Audio et musique
+expo install expo-av
+npm install tone
+
+# Vibrations haptiques
+expo install expo-haptics
+
+# Effets visuels supplémentaires
+expo install expo-linear-gradient
+expo install expo-blur
+expo install react-native-svg
+
+# Animations Lottie (optionnel pour transitions complexes)
+npm install lottie-react-native
+```
+
+### Architecture des dossiers à créer
+```
+src/
+├── components/
+│   ├── visual-effects/
+│   │   ├── ParticleSystem.tsx
+│   │   ├── GlowEffect.tsx
+│   │   ├── RippleEffect.tsx
+│   │   ├── ShimmerEffect.tsx
+│   │   └── StarBurst.tsx
+│   ├── ui/
+│   │   ├── OrganicButton.tsx
+│   │   ├── GlassmorphicCard.tsx
+│   │   ├── FloatingBubble.tsx
+│   │   └── GradientBackground.tsx
+│   └── game/
+│       ├── NodeGem.tsx
+│       ├── LightFilament.tsx
+│       ├── AnimatedBackground.tsx
+│       └── ComboEffect.tsx
+├── shaders/
+│   ├── glow.frag
+│   ├── ripple.frag
+│   ├── particles.frag
+│   └── nebula.frag
+├── audio/
+│   ├── SoundManager.ts
+│   ├── MusicEngine.ts
+│   └── ProceduralMusic.ts
+├── animations/
+│   ├── node-interactions.ts
+│   ├── level-transitions.ts
+│   ├── world-unlock.ts
+│   └── victory-sequence.ts
+└── utils/
+    ├── haptics.ts
+    └── performance.ts
+```
+
+## IMPLÉMENTATIONS PRIORITAIRES
+
+### 1. SYSTÈME DE PARTICULES AVANCÉ
+
+**Objectif** : Particules omniprésentes et fluides (poussières d'étoiles, étincelles, vagues lumineuses)
+
+**Implémentation avec react-native-skia** :
+- Créer un système de particules GPU-acceleré avec Skia
+- Types de particules :
+  - Poussières d'étoiles flottantes (mouvement Brownien lent)
+  - Étincelles lors des connexions (burst radial)
+  - Pluie de lumière lors des victoires (cascade from top)
+  - Particules dorées pour les combos (spirale ascendante)
+- Paramètres variables : couleur, taille, vitesse, durée de vie, opacité
+- Pool de particules recyclées pour performance (max 500 particules simultanées)
+- Blending mode: `additive` pour effet lumineux
+
+**Code de référence** :
+```typescript
+// Utiliser Skia pour des particules GPU-accelerated
+import { Canvas, Circle, Paint, Shader, Skia } from '@shopify/react-native-skia';
+import { useSharedValue, withTiming, withRepeat } from 'react-native-reanimated';
+
+// Créer un système avec 200-500 particules
+// Chaque particule: position XY, vélocité, couleur RGBA, lifetime
+// Update loop à 60 FPS avec requestAnimationFrame
+// Render avec Skia Canvas pour performance maximale
+```
+
+### 2. EFFETS LUMINEUX ET GLOW (NÉON DOUX)
+
+**Objectif** : Tous les éléments lumineux (nœuds, filaments, UI) doivent avoir un glow doux et organique
+
+**Implémentation** :
+- Créer un composant `<GlowEffect>` réutilisable avec Skia
+- Technique : multi-pass blur avec additive blending
+  - 1er pass: élément de base
+  - 2e pass: blur gaussien large (radius 10-15)
+  - 3e pass: blur gaussien étroit (radius 5-8)
+  - Combiner avec mode `screen` ou `add`
+- Animation du glow : pulsation douce (scale 0.95 → 1.05, durée 2s, easing sine)
+- Intensité variable selon l'état : hover +30%, selected +50%, combo +100%
+
+**Shader GLSL custom pour glow organique** :
+```glsl
+// glow.frag
+uniform vec2 resolution;
+uniform float time;
+uniform vec3 color;
+uniform float intensity;
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / resolution;
+  float dist = length(uv - 0.5);
+  
+  // Glow principal
+  float glow1 = 1.0 / (dist * 10.0 + 1.0);
+  // Glow secondaire plus large
+  float glow2 = 1.0 / (dist * 5.0 + 1.0) * 0.3;
+  
+  // Pulsation organique
+  float pulse = sin(time * 2.0) * 0.1 + 0.9;
+  
+  vec3 finalGlow = color * (glow1 + glow2) * intensity * pulse;
+  gl_FragColor = vec4(finalGlow, glow1);
+}
+```
+
+### 3. ARRIÈRE-PLANS PARALLAX 3D ANIMÉS
+
+**Objectif** : Fonds avec 4-5 couches de profondeur, mouvement parallax au gyroscope/touch, animations procédurales
+
+**Implémentation** :
+- Utiliser Expo GL + Three.js pour un rendu 3D léger
+- 5 couches de profondeur (z-index -500 à -100) :
+  1. Nébuleuse lointaine (shader avec bruit Perlin, très lent)
+  2. Nuages lumineux grands (texture avec blur, vitesse 0.3x)
+  3. Nuages lumineux moyens (vitesse 0.5x)
+  4. Particules d'étoiles lointaines (vitesse 0.7x)
+  5. Brume proche (subtile, vitesse 1x)
+- Parallax input : gyroscope (Expo Sensors) avec smoothing
+- Couleurs : dégradés selon le monde actuel (récupérer du theme provider)
+- Animation continue : mouvement sinusoïdal très lent (période 30-60s)
+
+**Structure Three.js** :
+```typescript
+// AnimatedBackground.tsx avec expo-gl
+import { GLView } from 'expo-gl';
+import { Renderer, Scene, PerspectiveCamera } from 'expo-three';
+import { TextureLoader, ShaderMaterial, PlaneGeometry, Mesh } from 'three';
+
+// Setup scene avec 5 plans parallax
+// Chaque plan: ShaderMaterial avec shader custom pour animation
+// Update loop avec gyroscope delta
+// Rendu optimisé à 30-60 FPS
+```
+
+### 4. ANIMATIONS DE NŒUDS ET FILAMENTS
+
+**Objectif** : Nœuds qui réagissent au touch avec physics, filaments tracés avec Bézier animées
+
+**Nœuds (NodeGem.tsx)** :
+- Idle : rotation lente + oscillation verticale (sin wave)
+- Hover : scale up 1.0 → 1.15 (spring animation, stiffness 200, damping 10)
+- Selected : bounce effect + glow pulsation + rotation 360° smooth
+- Connected : flash lumineux puis stabilisation avec glow permanent
+- Rendu : SVG ou Skia avec dégradés radiaux + reflets dynamiques (highlight top-right)
+
+**Filaments (LightFilament.tsx)** :
+- Tracé : courbe de Bézier cubique (contrôle points animés)
+- Animation de dessin : stroke-dashoffset de 100% → 0% (durée 300ms)
+- Glow : multi-layer avec blur progressif
+- Particules qui suivent le tracé (10-15 particules espacées)
+- Couleur : interpolation des couleurs des deux nœuds connectés
+- Effet "électrique" : variation subtile de l'épaisseur (noise 1D le long du path)
+
+**Code référence avec Reanimated** :
+```typescript
+import Animated, { 
+  useSharedValue, 
+  useAnimatedProps, 
+  withSpring,
+  withTiming 
+} from 'react-native-reanimated';
+import { Path } from 'react-native-svg';
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+// Calculer points Bézier entre deux nœuds
+// Animer avec useAnimatedProps
+// Ajouter glow avec filters SVG
+```
+
+### 5. EFFETS DE TRANSITION ENTRE ÉCRANS
+
+**Objectif** : Transitions fluides et organiques, jamais de cut brutal
+
+**Types de transitions** :
+- **Menu → Jeu** : Wipe circulaire expansif depuis le bouton "Jouer" + fade in du fond
+- **Niveau → Niveau** : Cross-fade + particules qui transportent les étoiles
+- **Monde débloqué** : Explosion de lumière centrale + zoom élastique de la nouvelle bulle-monde
+- **Victoire → Carte** : Collapse vers le centre avec traînée lumineuse
+
+**Implémentation avec React Navigation + Reanimated** :
+```typescript
+// Custom transition avec createNativeStackNavigator
+import { TransitionPresets } from '@react-navigation/stack';
+
+const customTransition = {
+  gestureDirection: 'vertical',
+  transitionSpec: {
+    open: { animation: 'spring', config: { stiffness: 300, damping: 30 } },
+    close: { animation: 'spring', config: { stiffness: 300, damping: 30 } },
+  },
+  cardStyleInterpolator: ({ current, layouts }) => {
+    // Custom interpolation pour effet organique
+    return {
+      cardStyle: {
+        transform: [
+          { scale: current.progress.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0.9, 1],
+            })
+          },
+          { rotate: current.progress.interpolate({
+              inputRange: [0, 1],
+              outputRange: ['5deg', '0deg'],
+            })
+          },
+        ],
+        opacity: current.progress,
+      },
+    };
+  },
+};
+```
+
+### 6. SYSTÈME AUDIO PROCÉDURAL
+
+**Objectif** : Musique générative qui réagit au gameplay + sons cristallins synchronisés
+
+**MusicEngine.ts avec Tone.js** :
+- Synthétiseur polyphonique : Tone.PolySynth avec envelope ADSR doux
+- Gamme pentatonique par monde :
+  - Monde 1 : C Major Pentatonic [C, D, E, G, A]
+  - Monde 2 : A Minor Pentatonic [A, C, D, E, G]
+  - Monde 3 : E Minor Pentatonic [E, G, A, B, D]
+  - etc.
+- Mapping couleur → note :
+  - Rouge = Do (C4)
+  - Orange = Ré (D4)
+  - Jaune = Mi (E4)
+  - Vert = Sol (G4)
+  - Bleu = La (A4)
+  - Violet = Si (B4)
+- Boucle ambiante : Tone.Sequence avec patterns aléatoires (Markov chain)
+- Réverbération : Tone.Reverb (decay 2-3s, wet 0.3)
+- Filtre passe-bas : Tone.Filter pour adoucir
+
+**SoundManager.ts avec expo-av** :
+- Pre-load tous les sons au démarrage de l'app
+- Sons cristallins : samples de cloche/carillon/glass harmonics
+- Sons d'erreur : notes graves douces (jamais harsh)
+- Sons de victoire : crescendo de harpe ascendante
+- Pool de sons (reuse instances pour performance)
+
+**Code référence** :
+```typescript
+import * as Tone from 'tone';
+import { Audio } from 'expo-av';
+
+class MusicEngine {
+  synth: Tone.PolySynth;
+  reverb: Tone.Reverb;
+  
+  constructor() {
+    this.synth = new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: 'sine' },
+      envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
+    }).toDestination();
+    
+    this.reverb = new Tone.Reverb({ decay: 2.5, wet: 0.3 }).toDestination();
+    this.synth.connect(this.reverb);
+  }
+  
+  playNote(color: string, duration: string = '8n') {
+    const noteMap = {
+      red: 'C4', orange: 'D4', yellow: 'E4',
+      green: 'G4', blue: 'A4', violet: 'B4'
+    };
+    const note = noteMap[color];
+    this.synth.triggerAttackRelease(note, duration, Tone.now());
+  }
+  
+  // Ambient loop procédural
+  startAmbient(world: number) {
+    const scales = {
+      1: ['C4', 'D4', 'E4', 'G4', 'A4'],
+      2: ['A3', 'C4', 'D4', 'E4', 'G4'],
+      // etc.
+    };
+    // Créer Tone.Sequence avec pattern aléatoire
+  }
+}
+```
+
+### 7. VIBRATIONS HAPTIQUES SUBTILES
+
+**Objectif** : Feedback tactile à chaque interaction importante
+
+**Implémentation avec expo-haptics** :
+```typescript
+import * as Haptics from 'expo-haptics';
+
+const HapticFeedback = {
+  // Connection valide de nœud
+  nodeConnect: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
+  
+  // Connection invalide
+  nodeError: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
+  
+  // Combo réussi
+  combo: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium),
+  
+  // Victoire niveau
+  victory: async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    await new Promise(r => setTimeout(r, 100));
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  },
+  
+  // Touch UI
+  buttonPress: () => Haptics.selectionAsync(),
+};
+```
+
+### 8. UI ORGANIQUE (GLASSMORPHISM)
+
+**Objectif** : Tous les panneaux, boutons, cartes utilisent le glassmorphism avec blur et transparence
+
+**GlassmorphicCard.tsx** :
+```typescript
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+
+const GlassmorphicCard = ({ children, intensity = 50 }) => (
+  
+    <LinearGradient
+      colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)']}
+      style={styles.gradient}
+    >
+      {children}
+    
+  
+);
+
+const styles = StyleSheet.create({
+  container: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  gradient: {
+    padding: 20,
+  },
+});
+```
+
+**OrganicButton.tsx** :
+- Forme : capsule avec border-radius extrême (999px) ou blob SVG
+- État idle : ombre portée douce + glow subtil
+- État pressed : scale 0.95 + glow intensifié + haptic
+- Animation : spring avec overshoot
+- Contenu : texte + icône SVG animée
+
+### 9. EFFETS SPÉCIAUX DE GAMEPLAY
+
+**RippleEffect.tsx** : Ondulation circulaire lors de chaque connexion
+- Cercles concentriques expandant (3-4 cercles)
+- Opacité décroissante (1.0 → 0.0)
+- Scale croissant (0.5 → 3.0)
+- Durée 600ms
+- Couleur = couleur du nœud source
+
+**ComboEffect.tsx** : Explosion de particules dorées pour combo x3+
+- Burst radial de 30-50 particules
+- Particules dorées avec trail
+- Animation ascendante en spirale
+- Son de carillon + haptic medium
+- Message flottant "COMBO x3" avec bounce
+
+**StarBurst.tsx** : Étoiles qui apparaissent une par une en fin de niveau
+- Chaque étoile : scale 0 → 1.2 → 1.0 (elastic ease)
+- Rotation 0° → 360° pendant l'apparition
+- Particules scintillantes autour
+- Son de carillon crescendo (do-mi-sol)
+- Délai entre étoiles : 400ms
+
+### 10. OPTIMISATIONS PERFORMANCE CRITIQUES
+
+**Obligatoire pour maintenir 60 FPS** :
+
+1. **Memoization agressive** :
+```typescript
+const MemoizedNode = React.memo(NodeGem, (prev, next) => {
+  return prev.id === next.id && 
+         prev.isSelected === next.isSelected &&
+         prev.isConnected === next.isConnected;
+});
+```
+
+2. **Throttling des animations coûteuses** :
+```typescript
+import { throttle } from 'lodash';
+
+const updateParallax = throttle((x, y) => {
+  // Update parallax layers
+}, 16); // Max 60 FPS
+```
+
+3. **Pooling des objets réutilisables** :
+```typescript
+class ParticlePool {
+  private pool: Particle[] = [];
+  private active: Particle[] = [];
+  
+  get(): Particle {
+    return this.pool.pop() || new Particle();
+  }
+  
+  release(particle: Particle): void {
+    particle.reset();
+    this.pool.push(particle);
+  }
+}
+```
+
+4. **useNativeDriver: true** partout où possible
+5. **Limiter les re-renders** : useState uniquement pour UI state, Reanimated shared values pour animations
+6. **Texture atlasing** : combiner images en sprite sheets
+7. **Lazy loading** : charger mondes/assets à la demande
+
+## AMÉLIORATIONS BONUS SUGGÉRÉES
+
+### 1. SHADERS PERSONNALISÉS AVANCÉS
+
+**Nebula Shader** pour arrière-plans :
+```glsl
+// nebula.frag - Bruit fractal pour nébuleuses
+uniform float time;
+uniform vec2 resolution;
+
+// Fonction noise Perlin 3D
+float noise(vec3 p) {
+  // Implementation Perlin noise
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / resolution;
+  
+  // Multi-octave noise
+  float n = noise(vec3(uv * 3.0, time * 0.1));
+  n += 0.5 * noise(vec3(uv * 6.0, time * 0.15));
+  n += 0.25 * noise(vec3(uv * 12.0, time * 0.2));
+  
+  // Couleur basée sur le monde
+  vec3 color1 = vec3(1.0, 0.6, 0.8); // Rose
+  vec3 color2 = vec3(0.6, 0.4, 1.0); // Violet
+  vec3 finalColor = mix(color1, color2, n);
+  
+  gl_FragColor = vec4(finalColor, 0.8);
+}
+```
+
+### 2. SYSTÈME DE TRAIL POUR LUMIE
+
+- Lumie laisse une traînée lumineuse quand elle se déplace
+- Trail composé de 20-30 points qui suivent avec delay progressif
+- Chaque point : glow + fade out progressif
+- Couleur = couleur du monde actuel
+
+### 3. EFFET DE PROFONDEUR DE CHAMP
+
+- Blur progressif des éléments en arrière-plan (depth of field)
+- Focus sur la zone de jeu (nœuds), blur sur UI périphérique
+- Ajustement dynamique selon la zone touchée
+
+### 4. REFLETS DYNAMIQUES SUR LES NŒUDS
+
+- Specular highlights qui bougent selon l'angle de vue
+- Environment mapping simplifié (cube map statique)
+- Variation selon l'heure de la journée (si feature calendar)
+
+### 5. SYSTÈME MÉTÉO AMBIANT
+
+- Pluie de lumière légère (particules descendantes)
+- Aurores boréales animées (shader avec sin waves)
+- Nuages qui passent devant la lune/soleil
+- Variation par monde et par événement
+
+## PLAN D'EXÉCUTION RECOMMANDÉ
+
+**Phase 1 - Fondations (Jour 1-2)**
+1. Installer toutes les dépendances
+2. Créer l'architecture de dossiers
+3. Implémenter le système de particules de base
+4. Configurer Skia et Reanimated correctement
+
+**Phase 2 - Effets Core (Jour 3-5)**
+5. Effets lumineux et glow sur nœuds/filaments
+6. Animations de nœuds (idle, hover, selected, connected)
+7. Filaments avec Bézier et particules suivantes
+8. RippleEffect et ComboEffect
+
+**Phase 3 - Arrière-plans (Jour 6-7)**
+9. Arrière-plans parallax 3D avec Three.js
+10. Shaders pour nébuleuses et effets atmosphériques
+11. Intégration gyroscope pour parallax
+
+**Phase 4 - Audio (Jour 8-9)**
+12. Système audio procédural avec Tone.js
+13. Sons cristallins avec expo-av
+14. Musique ambiante générative par monde
+
+**Phase 5 - UI Organique (Jour 10-11)**
+15. Composants glassmorphic (cards, buttons, modals)
+16. Transitions entre écrans
+17. Animations de déblocage de monde
+
+**Phase 6 - Polish & Performance (Jour 12-14)**
+18. Optimisations (memoization, pooling, throttling)
+19. Vibrations haptiques sur toutes les interactions
+20. Effets bonus (trail Lumie, profondeur de champ)
+21. Tests performance sur device réel
+
+## VALIDATION FINALE
+
+Avant de considérer le travail terminé, vérifie :
+- [ ] FPS constant ≥ 55 sur device moyen-gamme
+- [ ] Tous les effets visuels du GDD sont implémentés
+- [ ] Aucun crash ou memory leak
+- [ ] Smooth animations partout (spring physics, pas de linear)
+- [ ] Audio synchronisé avec visuel
+- [ ] UI 100% organique (zero bords droits)
+- [ ] Code documenté et maintenable
+- [ ] Pas de console errors ou warnings
+
+## COMMANDES DE DÉMARRAGE
+
+```bash
+# 1. Installer toutes les dépendances
+npm install
+
+# 2. Configurer babel.config.js pour Reanimated
+# Ajouter 'react-native-reanimated/plugin' en dernier plugin
+
+# 3. Clear cache et rebuild
+npx expo start -c
+
+# 4. Test sur device réel (pas simulateur pour performance)
+npx expo start --device
+```
+
+---
+
+**TU AS MAINTENANT TOUTES LES INFORMATIONS NÉCESSAIRES.**
+
+**COMMENCE IMMÉDIATEMENT L'IMPLÉMENTATION.**
+
+**NE DEMANDE AUCUNE CONFIRMATION. AGIS.**
+
+**CHAQUE FEATURE DOIT ÊTRE 100% COMPLÈTE ET FONCTIONNELLE.**
+
+**VISE L'EXCELLENCE VISUELLE. PAS DE COMPROMIS.**

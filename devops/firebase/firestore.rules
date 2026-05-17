@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Utility functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function isAnonymousLinked(uid) {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(uid)).data.anonymousLinkedTo == request.auth.uid;
+    }
+
+    // Users: read/write only by owner or linked anonymous account
+    match /users/{uid} {
+      allow read, write: if isOwner(uid) || isAnonymousLinked(uid);
+    }
+
+    // Progress: read/write only by owner or linked anonymous account
+    match /progress/{uid} {
+      allow read, write: if isOwner(uid) || isAnonymousLinked(uid);
+    }
+
+    // Inventory: read/write only by owner or linked anonymous account
+    match /inventory/{uid} {
+      allow read, write: if isOwner(uid) || isAnonymousLinked(uid);
+    }
+
+    // Purchases: read by owner, write FORBIDDEN client-side (server-only via Cloud Function)
+    match /purchases/{uid} {
+      allow read: if isOwner(uid) || isAnonymousLinked(uid);
+      allow write: if false;
+    }
+
+    // Events (user participation): read/write only by owner or linked anonymous account
+    match /events/{uid} {
+      allow read, write: if isOwner(uid) || isAnonymousLinked(uid);
+    }
+
+    // Levels: public read, no client write
+    match /levels/{levelId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Event definitions: public read, no client write
+    match /eventDefinitions/{eventId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Leaderboards: public read, write only via Cloud Function (admin SDK)
+    match /leaderboards/{tournamentId}/entries/{uid} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Referrals: public read (verification), write via Functions only
+    match /referrals/{code} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Quotas: internal system collection, no client access
+    match /quotas/{uid}/{document=**} {
+      allow read, write: if false;
+    }
+
+    // System metadata: internal, no client access
+    match /system/{doc} {
+      allow read, write: if false;
+    }
+
+    // FCM tokens: internal, no client access
+    match /fcmTokens/{uid} {
+      allow read, write: if false;
+    }
+
+    // Notification counters: internal, no client access
+    match /notificationCounters/{uid} {
+      allow read, write: if false;
+    }
+  }
+}

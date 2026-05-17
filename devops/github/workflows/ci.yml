@@ -1,0 +1,108 @@
+name: CI Lumora
+
+on:
+  push:
+    branches: [main, develop, 'feat/**']
+  pull_request:
+    branches: [main, develop]
+
+env:
+  FLUTTER_VERSION: '3.24.x'
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: lumora-mobile
+
+      - name: Generate code (build_runner)
+        run: |
+          flutter pub run build_runner build --delete-conflicting-outputs
+        working-directory: lumora-mobile
+
+      - name: Run static analysis
+        run: flutter analyze --no-fatal-infos
+        working-directory: lumora-mobile
+
+      - name: Run tests with coverage
+        run: flutter test --coverage --tags "unit,widget"
+        working-directory: lumora-mobile
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: lumora-mobile/coverage/lcov.info
+          fail_ci_if_error: false
+          verbose: true
+
+  build-android-debug:
+    runs-on: ubuntu-latest
+    needs: analyze-and-test
+    timeout-minutes: 25
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: lumora-mobile
+
+      - name: Build Android APK (debug)
+        run: |
+          flutter build apk --debug \
+            --dart-define=ADMOB_ANDROID_APP_ID=${{ secrets.ADMOB_ANDROID_APP_ID }} \
+            --dart-define=REVENUECAT_ANDROID_KEY=${{ secrets.REVENUECAT_ANDROID_KEY }} \
+            --dart-define=FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }}
+        working-directory: lumora-mobile
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lumora-android-debug
+          path: lumora-mobile/build/app/outputs/flutter-apk/app-debug.apk
+
+  build-ios-no-codesign:
+    runs-on: macos-latest
+    needs: analyze-and-test
+    timeout-minutes: 25
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: lumora-mobile
+
+      - name: Build iOS (no-codesign)
+        run: flutter build ios --no-codesign --simulator
+        working-directory: lumora-mobile

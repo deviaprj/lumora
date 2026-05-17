@@ -1,0 +1,2 @@
+json_key_file("") # Rempli par CI via GOOGLE_PLAY_JSON_KEY
+package_name("com.lumora.game")

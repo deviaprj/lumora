@@ -1,0 +1,108 @@
+# Fastlane Android — Lumora
+# frozen_string_literal: true
+
+default_platform(:android)
+
+platform :android do
+  # ---------------------------------------------------------------------------
+  # Helpers
+  # ---------------------------------------------------------------------------
+  def dart_defines
+    {
+      "ADMOB_ANDROID_APP_ID" => ENV["ADMOB_ANDROID_APP_ID"],
+      "REVENUECAT_ANDROID_KEY" => ENV["REVENUECAT_ANDROID_KEY"],
+      "FIREBASE_API_KEY" => ENV["FIREBASE_API_KEY"]
+    }
+  end
+
+  def dart_define_args
+    dart_defines.map { |k, v| "--dart-define=#{k}=#{v}" }.join(" ")
+  end
+
+  # ---------------------------------------------------------------------------
+  # Lanes
+  # ---------------------------------------------------------------------------
+
+  desc "Build debug APK and upload to Google Play Internal Testing"
+  lane :internal do
+    gradle(
+      task: "assembleDebug",
+      properties: {
+        "android.injected.signing.store.file" => File.expand_path("../app/keystore.jks"),
+        "android.injected.signing.store.password" => ENV["KEYSTORE_PASSWORD"],
+        "android.injected.signing.key.alias" => ENV["KEY_ALIAS"],
+        "android.injected.signing.key.password" => ENV["KEY_PASSWORD"]
+      }
+    )
+
+    upload_to_play_store(
+      track: "internal",
+      apk_paths: ["../build/app/outputs/flutter-apk/app-debug.apk"],
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Build release AAB and upload to Google Play Closed Testing (Beta)"
+  lane :beta do
+    sh("flutter build appbundle --release #{dart_define_args}")
+
+    upload_to_play_store(
+      track: "beta",
+      aab: "../build/app/outputs/bundle/release/app-release.aab",
+      skip_upload_metadata: false,
+      skip_upload_images: false,
+      skip_upload_screenshots: false
+    )
+  end
+
+  desc "Build release AAB and deploy to Production with gradual rollout (10% → 50% → 100%)"
+  lane :production do
+    sh("flutter build appbundle --release #{dart_define_args}")
+
+    # Phase 1 — 10 %
+    upload_to_play_store(
+      track: "production",
+      aab: "../build/app/outputs/bundle/release/app-release.aab",
+      rollout: 0.10,
+      skip_upload_metadata: false,
+      skip_upload_images: false,
+      skip_upload_screenshots: false
+    )
+
+    UI.success("Production rollout started at 10 %. Monitor for 24–48h before increasing.")
+
+    # Phase 2 — 50 % (manual promotion recommended via CI parameter or separate run)
+    # To promote from 10 % to 50 %, run: fastlane android promote_to_50
+
+    # Phase 3 — 100 % (manual promotion)
+    # To promote from 50 % to 100 %, run: fastlane android promote_to_100
+  end
+
+  desc "Promote rollout from 10 % to 50 %"
+  lane :promote_to_50 do
+    upload_to_play_store(
+      track: "production",
+      track_promote_to: "production",
+      rollout: 0.50
+    )
+    UI.success("Rollout increased to 50 %.")
+  end
+
+  desc "Promote rollout from 50 % to 100 %"
+  lane :promote_to_100 do
+    upload_to_play_store(
+      track: "production",
+      track_promote_to: "production",
+      rollout: 1.0
+    )
+    UI.success("Rollout increased to 100 %.")
+  end
+
+  desc "Build release AAB locally (no upload)"
+  lane :build_release do
+    sh("flutter build appbundle --release #{dart_define_args}")
+    UI.success("AAB built at build/app/outputs/bundle/release/app-release.aab")
+  end
+end

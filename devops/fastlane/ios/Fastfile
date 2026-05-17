@@ -1,0 +1,124 @@
+# Fastlane iOS — Lumora
+# frozen_string_literal: true
+
+default_platform(:ios)
+
+platform :ios do
+  # ---------------------------------------------------------------------------
+  # Helpers
+  # ---------------------------------------------------------------------------
+  def dart_defines
+    {
+      "ADMOB_IOS_APP_ID" => ENV["ADMOB_IOS_APP_ID"],
+      "REVENUECAT_IOS_KEY" => ENV["REVENUECAT_IOS_KEY"],
+      "FIREBASE_API_KEY" => ENV["FIREBASE_API_KEY"]
+    }
+  end
+
+  def dart_define_args
+    dart_defines.map { |k, v| "--dart-define=#{k}=#{v}" }.join(" ")
+  end
+
+  # ---------------------------------------------------------------------------
+  # Lanes
+  # ---------------------------------------------------------------------------
+
+  desc "Build iOS and upload to TestFlight (Internal Testing)"
+  lane :beta do
+    setup_ci if ENV['CI']
+
+    match(
+      type: "appstore",
+      readonly: true,
+      app_identifier: "com.lumora.game"
+    )
+
+    sh("flutter build ios --release --no-codesign #{dart_define_args}")
+
+    build_app(
+      workspace: "Runner.xcworkspace",
+      scheme: "Runner",
+      export_method: "app-store",
+      output_directory: "../build/ios/archive"
+    )
+
+    upload_to_testflight(
+      app_identifier: "com.lumora.game",
+      skip_waiting_for_build_processing: false,
+      notify_external_testers: false,
+      changelog: "Beta build: #{last_git_commit[:message]}"
+    )
+
+    UI.success("Build uploaded to TestFlight Internal.")
+  end
+
+  desc "Build iOS, upload to App Store Connect and submit for review"
+  lane :release do
+    setup_ci if ENV['CI']
+
+    match(
+      type: "appstore",
+      readonly: true,
+      app_identifier: "com.lumora.game"
+    )
+
+    sh("flutter build ios --release --no-codesign #{dart_define_args}")
+
+    build_app(
+      workspace: "Runner.xcworkspace",
+      scheme: "Runner",
+      export_method: "app-store",
+      output_directory: "../build/ios/archive"
+    )
+
+    upload_to_app_store(
+      app_identifier: "com.lumora.game",
+      submit_for_review: true,
+      automatic_release: false,
+      force: true,
+      skip_metadata: false,
+      skip_screenshots: false,
+      precheck_include_in_app_purchases: true,
+      submission_information: {
+        add_id_info_uses_idfa: false,
+        add_id_info_serves_ads: false,
+        add_id_info_tracks_install: true,
+        add_id_info_tracks_action: true,
+        add_id_info_limits_tracking: true,
+        export_compliance_uses_encryption: false,
+        export_compliance_encryption_updated: false
+      }
+    )
+
+    UI.success("Release submitted to App Store Connect for review.")
+  end
+
+  desc "Build iOS locally (no upload)"
+  lane :build_release do
+    match(
+      type: "appstore",
+      readonly: true,
+      app_identifier: "com.lumora.game"
+    )
+
+    sh("flutter build ios --release --no-codesign #{dart_define_args}")
+
+    build_app(
+      workspace: "Runner.xcworkspace",
+      scheme: "Runner",
+      export_method: "app-store",
+      output_directory: "../build/ios/archive"
+    )
+
+    UI.success("IPA built locally at build/ios/archive/.")
+  end
+
+  desc "Register new devices and update provisioning profiles"
+  lane :register_devices do
+    match(
+      type: "development",
+      force_for_new_devices: true,
+      app_identifier: "com.lumora.game"
+    )
+  end
+end

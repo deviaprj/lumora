@@ -1,0 +1,36 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Run Flutter tests"
+  lane :test do
+    flutter_command("test --tags unit,widget")
+  end
+
+  desc "Build iOS (no codesign)"
+  lane :build do
+    flutter_command("build ios --no-codesign --simulator")
+  end
+
+  desc "Deploy to TestFlight"
+  lane :beta do
+    match(type: "appstore", readonly: is_ci)
+    flutter_command("build ipa --release")
+    upload_to_testflight(
+      ipa: "../build/ios/ipa/Lumora.ipa",
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Deploy to App Store"
+  lane :release do
+    match(type: "appstore", readonly: is_ci)
+    flutter_command("build ipa --release")
+    upload_to_app_store(
+      ipa: "../build/ios/ipa/Lumora.ipa",
+      force: true,
+      skip_metadata: false,
+      skip_screenshots: false,
+      submit_for_review: false
+    )
+  end
+end

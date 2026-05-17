@@ -1,0 +1,112 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAnonymousLinked(userId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(userId)) &&
+        get(/databases/$(database)/documents/users/$(userId)).data.anonymousUid == request.auth.uid;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAnonymousLinked(userId);
+      allow create: if isAuthenticated();
+      allow update: if isOwner(userId) || isAnonymousLinked(userId);
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    // User profiles (public read)
+    match /profiles/{userId} {
+      allow read: if true;
+      allow write: if isOwner(userId);
+    }
+
+    // Game progress
+    match /progress/{userId} {
+      allow read: if isOwner(userId) || isAnonymousLinked(userId);
+      allow write: if isOwner(userId) || isAnonymousLinked(userId);
+    }
+
+    // Levels data (read-only for clients)
+    match /levels/{levelId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Leaderboards
+    match /leaderboards/{leaderboardId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Leaderboard entries
+    match /leaderboards/{leaderboardId}/entries/{entryId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isOwner(resource.data.userId);
+    }
+
+    // Purchases — write-only by server (Cloud Functions)
+    match /purchases/{purchaseId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // Events
+    match /events/{eventId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Event participants
+    match /events/{eventId}/participants/{userId} {
+      allow read: if true;
+      allow create, update: if isOwner(userId);
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    // Notifications
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // Notification counters (server-managed)
+    match /notificationCounters/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false;
+    }
+
+    // Daily rewards
+    match /dailyRewards/{userId} {
+      allow read: if isOwner(userId) || isAnonymousLinked(userId);
+      allow write: if isOwner(userId) || isAnonymousLinked(userId);
+    }
+
+    // Referrals
+    match /referrals/{referralId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // Settings (per-user)
+    match /settings/{userId} {
+      allow read: if isOwner(userId) || isAnonymousLinked(userId);
+      allow write: if isOwner(userId) || isAnonymousLinked(userId);
+    }
+  }
+}
