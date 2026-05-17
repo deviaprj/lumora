@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/auth_screen.dart';
+import '../features/game/data/player_progression_service.dart';
 import '../features/game/domain/level_data.dart';
 import '../features/game/presentation/game_screen.dart';
 import '../features/game/presentation/world_map_screen.dart';
@@ -196,10 +197,14 @@ final appRouter = GoRouter(
       path: '/world-map',
       pageBuilder: (context, state) {
         final completedId = state.uri.queryParameters['completed'];
+        final persistedCompletedId = PlayerProgressionService.instance.completedLevelId;
+        final routeCompletedId = completedId != null ? int.tryParse(completedId) ?? 0 : 0;
         return _worldMapTransition(
           state: state,
           child: WorldMapScreen(
-            completedLevelId: completedId != null ? int.tryParse(completedId) ?? 0 : 0,
+            completedLevelId: routeCompletedId > persistedCompletedId
+                ? routeCompletedId
+                : persistedCompletedId,
           ),
         );
       },

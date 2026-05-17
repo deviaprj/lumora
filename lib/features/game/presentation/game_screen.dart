@@ -6,6 +6,7 @@ import 'package:flame/game.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/utils/analytics.dart';
+import '../data/player_progression_service.dart';
 import '../../monetization/data/reward_inventory.dart';
 import '../../monetization/data/rewarded_ad_service.dart';
 import '../../../shared/widgets/lumora_button.dart';
@@ -36,6 +37,7 @@ class _GameScreenState extends State<GameScreen> {
   late final RewardedAdService _rewardedAdService;
   late final RewardInventory _rewardInventory;
   late final LumoraAnalyticsService _analyticsService;
+  late final PlayerProgressionService _progressionService;
   bool _showVictory = false;
   bool _showDefeat = false;
   int _rewardedVideosUsed = 0;
@@ -51,10 +53,12 @@ class _GameScreenState extends State<GameScreen> {
     _rewardedAdService = widget.rewardedAdService ?? AdMobRewardedAdService.instance;
     _rewardInventory = RewardInventory.instance;
     _analyticsService = LumoraAnalyticsService.instance;
+    _progressionService = PlayerProgressionService.instance;
     _rewardInventory.addListener(_onInventoryChanged);
 
     unawaited(_rewardedAdService.initialize());
     unawaited(_rewardInventory.load());
+    unawaited(_progressionService.markLevelSeen(level));
 
     // Connecter les callbacks
     _game.onVictory = _onVictory;
@@ -70,6 +74,7 @@ class _GameScreenState extends State<GameScreen> {
 
   void _onVictory() {
     if (!mounted) return;
+    unawaited(_progressionService.markLevelCompleted(_gameState.level));
     final completedObjectives = _gameState.secondaryObjectives
         .where((objective) => _gameState.isSecondaryObjectiveCompleted(objective))
         .toList(growable: false);
@@ -256,6 +261,7 @@ class _GameScreenState extends State<GameScreen> {
     });
     final hasNextLevel = _game.loadNextLevel();
     if (hasNextLevel) {
+      unawaited(_progressionService.markLevelSeen(_gameState.level));
       _game.startLevel();
       return;
     }

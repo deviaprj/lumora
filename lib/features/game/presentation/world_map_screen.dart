@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
+import '../data/player_progression_service.dart';
 import '../../monetization/data/reward_inventory.dart';
 import '../../../shared/widgets/lumora_button.dart';
 import '../domain/level_data.dart';
@@ -47,7 +48,12 @@ class WorldMapScreen extends StatefulWidget {
 
 class _WorldMapScreenState extends State<WorldMapScreen>
     with TickerProviderStateMixin {
-  int get _completedLevelId => widget.completedLevelId;
+  int get _completedLevelId {
+    final persistedCompletedId = PlayerProgressionService.instance.completedLevelId;
+    return widget.completedLevelId > persistedCompletedId
+        ? widget.completedLevelId
+        : persistedCompletedId;
+  }
   late final RewardInventory _rewardInventory;
   MasteryMapFilter _masteryFilter = MasteryMapFilter.all;
 
