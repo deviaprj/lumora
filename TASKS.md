@@ -15,6 +15,17 @@
 | 36 | Tests unitaires gameplay et progression mis a jour | ✅ Terminé |
 | 37 | Documentation produit et notice synchronisees | ✅ Terminé |
 
+## Complété (session 2026-05-17 — meta-boucle, analytics, world map)
+
+| # | Tâche | Statut |
+|---|-------|--------|
+| 38 | Inventaire joueur persistant pour vies, indices et charges bonus | ✅ Terminé |
+| 39 | Activation réelle des charges Double Score et Super Filament | ✅ Terminé |
+| 40 | Objectifs secondaires proceduraux + recompenses de maitrise | ✅ Terminé |
+| 41 | Analytics `mastery_reward_granted` avec fallback local | ✅ Terminé |
+| 42 | World map enrichie (filtres, badges, compteur, saut pertinent) | ✅ Terminé |
+| 43 | Test widget cible pour la navigation de maitrise | ✅ Terminé |
+
 | # | Tâche | Statut |
 |---|-------|--------|
 | 1 | Fix anchor/Offset.zero (EnergyNode + LumieComponent) | ✅ Terminé |
@@ -64,18 +75,24 @@
 
 ## Problèmes connus
 
-- **MIUI USB déconnexion** : Le Xiaomi 12 se déconnecte pendant les tests device après ~30s. Solution : `adb shell settings put global stay_on_while_plugged_in 3` + activer "Stay awake" dans les options développeur.
-- **Integration tests device** : 6/8 tests UI passent (01-06), mais le device se déconnecte avant la fin du test 07. Les 7 tests GameState (09-15) sont en logique pure et ne nécessitent pas le device.
+- **Build Android des tests device cassé par le toolchain Kotlin** : la suite `flutter test integration_test/ --device-id 6db039ac` ne démarre plus sur device car `firebase_analytics` tire des dépendances Play Services compilées avec une metadata Kotlin 2.1.0, alors que le plugin Kotlin Android du projet attend encore 1.8.0. Le blocage arrive pendant `:firebase_analytics:compileDebugKotlin`, avant l'exécution des scénarios UI.
+- **Configuration Firebase mobile absente du repo** : `android/app/google-services.json` et `ios/Runner/GoogleService-Info.plist` ne sont pas présents. L'app garde donc un fallback local pour l'analytics et l'auth Firebase ne peut pas être finalisée tant que la config native n'est pas fournie.
+- **MIUI / écran allumé** : le Xiaomi 12 est bien visible en ADB et `stay_on_while_plugged_in = 15` est déjà actif. La déconnexion USB n'est plus le blocage principal observé le 2026-05-17, mais le réglage "Stay awake" doit rester activé pour les longues suites device.
 
-## Prochaine session (prioritaire)
+## Prochaine session (prioritaire vers beta)
 
-1. **Persistance des bonus pubs** : relier les bonus boutique/evenements a un inventaire joueur persistant.
-2. **Assets parallax PNG** : remplacer le fond procédural par de vrais assets PNG quand disponibles.
-3. **Firebase Auth** : brancher l'authentification (Google/Apple/Email/Anonymous).
-4. **Progression persistante** : sauvegarder le completedLevelId et les themes/règles vues en SharedPreferences.
-5. **Stabiliser tests device** : relancer les 15 tests integration et couvrir les flows video recompensee.
-6. **Fonts** : bundler Nunito (référencé dans theme mais pas dans pubspec).
-7. **Economy tuning** : calibrer les paliers `Surcharge/Resonance/Blackout` via analytics et Remote Config.
+1. **Débloquer le build Android device** : mettre à niveau le plugin Kotlin/Gradle Android pour redevenir compatible avec `firebase_analytics` et rétablir `assembleDebug`.
+2. **Persistance de progression joueur** : stocker `completedLevelId`, derniers mondes vus, règles vues et statut de maîtrise global dans un service local dédié.
+3. **Firebase mobile complet** : embarquer la config native, brancher Firebase Auth (Google, Apple, Email, anonyme) et conserver le parcours invité comme fallback.
+4. **Stabiliser les tests device** : relancer les 15 scénarios sur Xiaomi 12 une fois le build réparé, puis ajouter les flows vidéo récompensée, inventaire persistant et world map de maîtrise.
+5. **Fonts produit** : bundler Nunito dans `pubspec.yaml`, vérifier les fallback typography et homogénéiser les styles titres/corps/badges.
+6. **Progression et monde 2+** : ajouter un vrai pont entre le tutoriel artisanal et les mondes suivants avec plus de niveaux signature, paliers de difficulté plus lisses et meilleure montée en charge.
+7. **Assets visuels bêta** : étendre les PNG de parallax et les fonds illustrés au-delà du gameplay principal (events, world map, variations par monde) en gardant le procédural en fallback.
+8. **UX défaite / reprise** : enrichir l'overlay de défaite avec tentatives restantes, meilleure lisibilité des vies de réserve et hiérarchie claire entre retry, pub et abandon.
+9. **Economy tuning** : calibrer `Surcharge`, `Resonance`, `Blackout`, les cooldowns boutique/événements et les récompenses de maîtrise via analytics + Remote Config.
+10. **Boucle de rétention bêta** : ajouter un défi quotidien, une rotation simple d'événements et un premier objectif de retour joueur sans complexifier encore le commerce.
+11. **Accessibilité et confort** : mode daltonien léger, vibrations configurables plus fines, vitesse FX réduite et meilleure lisibilité des états de combo/erreur.
+12. **Checklist release beta** : versioning, crash-free startup, instrumentation minimale, smoke tests Android, vérification offline et revue UX complète du premier quart d'heure.
 
 ## Backlog
 
@@ -85,3 +102,11 @@
 - Leaderboard + système de parrainage
 - Mode journalier (niveau aléatoire quotidien)
 - Achievements / badges
+- Sauvegarde cloud / reprise multi-device liée au compte
+- Replays légers ou ghost runs pour comparer ses meilleures parties
+- Partage social de score, niveau et série de maîtrise
+- Personnalisation cosmétique des mondes, filaments et halos
+- A/B tests de tuning economy / UX via Remote Config
+- Pipeline LiveOps (saisons, bundles, calendrier d'événements)
+- Localisation EN pour la bêta fermée élargie
+- Accessibilité avancée (contrastes renforcés, tailles de texte, réduction des animations)

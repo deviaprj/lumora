@@ -37,6 +37,36 @@
 
 **Pourquoi** : Une simple numerotation ne suffit pas a guider la rejouabilite. Le joueur doit voir instantanement quels niveaux peuvent encore enrichir son inventaire, lesquels sont partiellement maitrises, et lesquels sont totalement exploites.
 
+### D13 : La beta doit prioriser la fiabilite du build mobile avant toute nouvelle surcouche SDK
+**Décision** : Corriger d'abord le toolchain Android (Kotlin/Gradle) avant d'ajouter d'autres briques dependantes comme Firebase Auth complet, Remote Config ou RevenueCat.
+
+**Pourquoi** : Tant que `assembleDebug` casse sur `firebase_analytics:compileDebugKotlin`, chaque nouvelle integration mobile augmente le cout de diagnostic sans faire progresser la validation produit. La beta a besoin d'un pipeline installable avant d'avoir plus de services.
+
+### D14 : La progression persistante devient une couche produit a part entiere
+**Décision** : Introduire une vraie source de verite locale pour la progression joueur (`completedLevelId`, mondes vus, regles vues, maitrise resumee), distincte du seul transport de parametres via le router.
+
+**Pourquoi** : La world map, la retention, les reprises de session et la future authentification n'ont plus assez de contexte si la progression ne vit qu'en memoire ou en query param. La beta doit redonner au joueur son etat reel sans friction.
+
+### D15 : L'authentification doit etre branchee sans casser le parcours invite
+**Décision** : Conserver un flux invite pleinement jouable, puis proposer le lien vers Google/Apple/Email comme une consolidation de progression et non comme un mur d'entree.
+
+**Pourquoi** : Lumora repose sur une adoption immediate. Forcer trop tot l'auth ferait baisser l'activation, alors que la beta a surtout besoin de mesurer la boucle coeur et la retention courte.
+
+### D16 : Les assets illustres doivent remplacer le proceduriel de facon selective, pas brutale
+**Décision** : Prioriser des PNG de parallax et de fond sur les surfaces les plus visibles (gameplay, events, mondes phares), tout en gardant le proceduriel comme fallback robuste.
+
+**Pourquoi** : Le proceduriel actuel assure la continuite visuelle et la securite de build. Le remplacer partout d'un coup augmenterait la dette asset et les risques de regression sans gain proportionnel sur la perception beta.
+
+### D17 : La beta doit renforcer la retention avant de renforcer la monetisation
+**Décision** : Prioriser les boucles de maitrise, progression persistante, defi quotidien, polish UX et tests device avant les IAP complexes et le passe saisonnier.
+
+**Pourquoi** : La monétisation actuelle opt-in suffit pour tester l'acceptation de la boucle récompensée. Avant d'ajouter RevenueCat et des offres payantes, il faut s'assurer que la base est rejouable, stable et mesurable.
+
+### D18 : Les tests device deviennent un gate de release, pas seulement un confort de dev
+**Décision** : Une fois le build Android rétabli, la suite device doit couvrir les flows critiques de la beta: lancement, auth invité, game loop, reward inventory, vidéos récompensées, world map et retour session.
+
+**Pourquoi** : Le coeur de Lumora se juge sur un vrai appareil: fluidité, navigation, overlays, contraintes MIUI et stabilité du build. Sans ce garde-fou, les regressions mobile restent invisibles trop longtemps.
+
 ## Session 2026-05-11
 
 ### D1 : Système vies/coups séparé
