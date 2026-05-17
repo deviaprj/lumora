@@ -33,8 +33,13 @@ enum MasteryRewardState {
 /// est déduit dynamiquement. Navigation vers /game avec le niveau sélectionné.
 class WorldMapScreen extends StatefulWidget {
   final int completedLevelId;
+  final ValueChanged<LevelData>? onLevelSelected;
 
-  const WorldMapScreen({super.key, this.completedLevelId = 0});
+  const WorldMapScreen({
+    super.key,
+    this.completedLevelId = 0,
+    this.onLevelSelected,
+  });
 
   @override
   State<WorldMapScreen> createState() => _WorldMapScreenState();
@@ -78,6 +83,16 @@ class _WorldMapScreenState extends State<WorldMapScreen>
     if (mounted) {
       setState(() {});
     }
+  }
+
+  void _openLevel(BuildContext context, LevelData level) {
+    final onLevelSelected = widget.onLevelSelected;
+    if (onLevelSelected != null) {
+      onLevelSelected(level);
+      return;
+    }
+
+    context.go('/game', extra: level);
   }
 
   @override
@@ -158,9 +173,17 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                         size: 44,
                         elevation: 3,
                       ),
-                      const Spacer(),
-                      Text('Carte des Mondes', style: LumoraTextStyles.titleLarge()),
-                      const Spacer(),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Carte des Mondes',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: LumoraTextStyles.titleLarge(),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
                       if (levelsWithPendingMastery > 0)
                         _MasteryMapCounter(levelCount: levelsWithPendingMastery)
                       else
@@ -182,6 +205,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                       child: Row(
                         children: [
                           _MasteryFilterChip(
+                            key: const ValueKey<String>('mastery-filter-all'),
                             label: 'Tout',
                             count: levels.length,
                             selected: _masteryFilter == MasteryMapFilter.all,
@@ -190,6 +214,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                           ),
                           const SizedBox(width: 8),
                           _MasteryFilterChip(
+                            key: const ValueKey<String>('mastery-filter-remaining'),
                             label: 'À gagner',
                             count: levelsWithPendingMastery,
                             selected: _masteryFilter == MasteryMapFilter.remaining,
@@ -198,6 +223,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                           ),
                           const SizedBox(width: 8),
                           _MasteryFilterChip(
+                            key: const ValueKey<String>('mastery-filter-partial'),
                             label: 'En cours',
                             count: levelsWithPartialMastery,
                             selected: _masteryFilter == MasteryMapFilter.partial,
@@ -206,6 +232,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                           ),
                           const SizedBox(width: 8),
                           _MasteryFilterChip(
+                            key: const ValueKey<String>('mastery-filter-complete'),
                             label: 'Complète',
                             count: levelsWithCompleteMastery,
                             selected: _masteryFilter == MasteryMapFilter.complete,
@@ -221,7 +248,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                         child: _JumpToRelevantLevelChip(
                           levelId: nextRelevantLevel.id,
                           filter: _masteryFilter,
-                          onTap: () => context.go('/game', extra: nextRelevantLevel),
+                          onTap: () => _openLevel(context, nextRelevantLevel),
                         ),
                       ),
                   ],
@@ -233,17 +260,21 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                 bottom: 16,
                 left: 0,
                 right: 0,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _LegendDot(color: LumoraColors.auroraGold, label: 'Complété'),
-                    const SizedBox(width: 16),
-                    _LegendDot(color: LumoraColors.auroraGreen, label: 'Disponible'),
-                    const SizedBox(width: 16),
-                    _LegendDot(color: LumoraColors.auroraPurple, label: 'Maîtrise restante'),
-                    const SizedBox(width: 16),
-                    _LegendDot(color: LumoraColors.lockOverlay, label: 'Verrouillé'),
-                  ],
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _LegendDot(color: LumoraColors.auroraGold, label: 'Complété'),
+                      const SizedBox(width: 16),
+                      _LegendDot(color: LumoraColors.auroraGreen, label: 'Disponible'),
+                      const SizedBox(width: 16),
+                      _LegendDot(color: LumoraColors.auroraPurple, label: 'Maîtrise restante'),
+                      const SizedBox(width: 16),
+                      _LegendDot(color: LumoraColors.lockOverlay, label: 'Verrouillé'),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -286,7 +317,7 @@ class _WorldMapScreenState extends State<WorldMapScreen>
                     masteryState: masteryState,
                     pendingMasteryCount: pendingMasteryCount,
                     onTap: canNavigate
-                        ? () => context.go('/game', extra: level)
+                        ? () => _openLevel(context, level)
                         : null,
                   ),
                 ),
@@ -594,6 +625,7 @@ class _MasteryFilterChip extends StatelessWidget {
   final VoidCallback onTap;
 
   const _MasteryFilterChip({
+    super.key,
     required this.label,
     required this.count,
     required this.selected,
@@ -669,8 +701,10 @@ class _JumpToRelevantLevelChip extends StatelessWidget {
     };
 
     return GestureDetector(
+      key: ValueKey<String>('jump-to-${filter.name}-$levelId'),
       onTap: onTap,
       child: Container(
+        width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(LumoraRadii.bubble),
@@ -678,11 +712,17 @@ class _JumpToRelevantLevelChip extends StatelessWidget {
           border: Border.all(color: accent.withAlpha(96)),
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.navigation_rounded, color: Colors.white, size: 15),
+            const Icon(Icons.navigation_rounded, color: Colors.white, size: 15),
             const SizedBox(width: 8),
-            Text(label, style: LumoraTextStyles.label(color: Colors.white)),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: LumoraTextStyles.label(color: Colors.white),
+              ),
+            ),
           ],
         ),
       ),
