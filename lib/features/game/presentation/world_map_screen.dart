@@ -338,11 +338,12 @@ class _WorldMapScreenState extends State<WorldMapScreen>
   }
 
   /// Position normalisée des bulles en arc de cercle.
+  /// startY commence à 28% pour éviter le header + filtre chips (≈160dp sur Xiaomi 12).
   Offset _levelPosition(int index, int total, Size size) {
     final screenWidth = size.width;
     final screenHeight = size.height;
-    final startY = screenHeight * 0.12;
-    final endY = screenHeight * 0.78;
+    final startY = screenHeight * 0.28;
+    final endY = screenHeight * 0.88;
     final stepY = total > 1 ? (endY - startY) / (total - 1) : 0.0;
 
     final y = startY + index * stepY;
@@ -884,8 +885,8 @@ class _BezierPathPainter extends CustomPainter {
   }
 
   Offset _levelPosition(int index, int total, Size size) {
-    final startY = size.height * 0.12;
-    final endY = size.height * 0.78;
+    final startY = size.height * 0.28;
+    final endY = size.height * 0.88;
     final stepY = total > 1 ? (endY - startY) / (total - 1) : 0.0;
 
     final y = startY + index * stepY;

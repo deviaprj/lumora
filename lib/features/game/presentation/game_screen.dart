@@ -405,25 +405,20 @@ class _GameScreenState extends State<GameScreen> {
           ),
 
           // Bouton démarrer (affiché au début du niveau)
+          // IntrinsicWidth/IntrinsicHeight évite que le Center+Stack donne des
+          // contraintes infinies au Container et force le bouton à shrink-wrap.
           if (_gameState.status == GameStatus.idle)
             Center(
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: LumoraColors.auroraBlue.withAlpha(40),
-                      blurRadius: 40,
-                      spreadRadius: 8,
-                    ),
-                  ],
-                ),
-                child: LumoraButton(
-                  onPressed: _onStartGame,
-                  text: 'Commencer',
-                  icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
-                  gradientColors: [LumoraColors.twilight, LumoraColors.auroraBlue],
-                  elevation: 10,
+              child: IntrinsicWidth(
+                child: IntrinsicHeight(
+                  child: LumoraButton(
+                    onPressed: _onStartGame,
+                    text: 'Commencer',
+                    icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 22),
+                    gradientColors: [LumoraColors.twilight, LumoraColors.auroraBlue],
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                    elevation: 10,
+                  ),
                 ),
               ),
             ),
