@@ -177,8 +177,13 @@ late final appRouter = GoRouter(
   refreshListenable: _authRefresh,
   redirect: (BuildContext context, GoRouterState state) {
     final hasFirebase = Firebase.apps.isNotEmpty;
-    final isAuth = hasFirebase && FirebaseAuth.instance.currentUser != null;
     final location = state.uri.path;
+
+    if (!hasFirebase) {
+      return null;
+    }
+
+    final isAuth = FirebaseAuth.instance.currentUser != null;
 
     final publicRoutes = ['/splash', '/auth'];
     if (publicRoutes.contains(location)) return null;

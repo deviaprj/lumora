@@ -91,19 +91,24 @@ class _LumoraButtonState extends State<LumoraButton>
     if (effectiveSize != null) {
       child = widget.icon ?? const SizedBox.shrink();
     } else {
-      child = Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (widget.icon != null) ...[
-            widget.icon!,
-            const SizedBox(width: 10),
+      child = FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.icon != null) ...[
+              widget.icon!,
+              const SizedBox(width: 10),
+            ],
+            if (widget.text != null)
+              Text(
+                widget.text!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: LumoraTextStyles.bodyLarge(color: LumoraColors.pearl),
+              ),
           ],
-          if (widget.text != null)
-            Text(
-              widget.text!,
-              style: LumoraTextStyles.bodyLarge(color: LumoraColors.pearl),
-            ),
-        ],
+        ),
       );
     }
 

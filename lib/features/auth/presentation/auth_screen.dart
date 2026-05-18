@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
@@ -15,6 +16,16 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   final AuthService _authService = AuthService();
   bool _busy = false;
+
+  bool get _firebaseReady => Firebase.apps.isNotEmpty;
+
+  void _showFirebaseUnavailableMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Firebase non configuré sur ce build. Utilise "Jouer anonymement" en attendant.'),
+      ),
+    );
+  }
 
   Future<void> _runAuth(Future<void> Function() action) async {
     if (_busy) {
@@ -49,6 +60,11 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _openEmailDialog() async {
+    if (!_firebaseReady) {
+      _showFirebaseUnavailableMessage();
+      return;
+    }
+
     final success = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -93,9 +109,15 @@ class _AuthScreenState extends State<AuthScreen> {
                     icon: Icons.g_mobiledata_rounded,
                     colors: const [Color(0xFFEA4335), Color(0xFFFBBC05)],
                     enabled: !_busy,
-                    onTap: () => _runAuth(() async {
+                    onTap: () {
+                      if (!_firebaseReady) {
+                        _showFirebaseUnavailableMessage();
+                        return;
+                      }
+                      _runAuth(() async {
                       await _authService.signInWithGoogle();
-                    }),
+                      });
+                    },
                   ),
                   const SizedBox(height: 12),
                   _AuthBubble(
@@ -103,9 +125,15 @@ class _AuthScreenState extends State<AuthScreen> {
                     icon: Icons.apple_rounded,
                     colors: const [Color(0xFF555555), Color(0xFFBBBBBB)],
                     enabled: !_busy,
-                    onTap: () => _runAuth(() async {
+                    onTap: () {
+                      if (!_firebaseReady) {
+                        _showFirebaseUnavailableMessage();
+                        return;
+                      }
+                      _runAuth(() async {
                       await _authService.signInWithApple();
-                    }),
+                      });
+                    },
                   ),
                   const SizedBox(height: 12),
                   _AuthBubble(
@@ -113,9 +141,15 @@ class _AuthScreenState extends State<AuthScreen> {
                     icon: Icons.facebook_rounded,
                     colors: const [Color(0xFF1877F2), Color(0xFF0D47A1)],
                     enabled: !_busy,
-                    onTap: () => _runAuth(() async {
+                    onTap: () {
+                      if (!_firebaseReady) {
+                        _showFirebaseUnavailableMessage();
+                        return;
+                      }
+                      _runAuth(() async {
                       await _authService.signInWithFacebook();
-                    }),
+                      });
+                    },
                   ),
                   const SizedBox(height: 12),
                   _AuthBubble(
@@ -131,9 +165,15 @@ class _AuthScreenState extends State<AuthScreen> {
                     icon: Icons.person_outline_rounded,
                     colors: [LumoraColors.twilight, LumoraColors.dawn],
                     enabled: !_busy,
-                    onTap: () => _runAuth(() async {
-                      await _authService.signInAnonymously();
-                    }),
+                    onTap: () {
+                      if (!_firebaseReady) {
+                        context.go('/home');
+                        return;
+                      }
+                      _runAuth(() async {
+                        await _authService.signInAnonymously();
+                      });
+                    },
                   ),
                   const SizedBox(height: 24),
                   if (_busy)
