@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/auth_screen.dart';
 import '../features/game/data/player_progression_service.dart';
@@ -29,7 +30,14 @@ class _GoRouterRefreshStream extends ChangeNotifier {
   }
 }
 
-final _authRefresh = _GoRouterRefreshStream(FirebaseAuth.instance.authStateChanges());
+Stream<dynamic> _authStateChangesSafely() {
+  if (Firebase.apps.isEmpty) {
+    return const Stream<dynamic>.empty();
+  }
+  return FirebaseAuth.instance.authStateChanges();
+}
+
+late final _authRefresh = _GoRouterRefreshStream(_authStateChangesSafely());
 
 /// Transition organique — fade + scale élastique (depuis la droite).
 CustomTransitionPage<void> _buildPage({
@@ -163,12 +171,13 @@ CustomTransitionPage<void> _gameTransition({
   );
 }
 
-final appRouter = GoRouter(
+late final appRouter = GoRouter(
   initialLocation: '/splash',
   debugLogDiagnostics: true,
   refreshListenable: _authRefresh,
   redirect: (BuildContext context, GoRouterState state) {
-    final isAuth = FirebaseAuth.instance.currentUser != null;
+    final hasFirebase = Firebase.apps.isNotEmpty;
+    final isAuth = hasFirebase && FirebaseAuth.instance.currentUser != null;
     final location = state.uri.path;
 
     final publicRoutes = ['/splash', '/auth'];

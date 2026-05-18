@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -34,11 +35,37 @@ class AuthService {
   AuthService({
     FirebaseAuth? auth,
     FirebaseFunctions? functions,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _functions = functions ?? FirebaseFunctions.instance;
+  })  : _authOverride = auth,
+        _functionsOverride = functions;
 
-  final FirebaseAuth _auth;
-  final FirebaseFunctions _functions;
+  final FirebaseAuth? _authOverride;
+  final FirebaseFunctions? _functionsOverride;
+
+  FirebaseAuth get _auth {
+    if (_authOverride != null) {
+      return _authOverride!;
+    }
+    if (Firebase.apps.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'firebase-not-initialized',
+        message: 'Firebase n\'est pas initialisé. Vérifie la configuration mobile (google-services / dart-define).',
+      );
+    }
+    return FirebaseAuth.instance;
+  }
+
+  FirebaseFunctions get _functions {
+    if (_functionsOverride != null) {
+      return _functionsOverride!;
+    }
+    if (Firebase.apps.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'firebase-not-initialized',
+        message: 'Firebase n\'est pas initialisé. Impossible d\'appeler les Cloud Functions.',
+      );
+    }
+    return FirebaseFunctions.instance;
+  }
 
   User? get currentUser => _auth.currentUser;
 
