@@ -1,0 +1,7 @@
+// Copy this file to FacebookConfig.xcconfig and fill real values.
+// This file is intended for local use and should not contain production secrets in VCS.
+
+FACEBOOK_APP_ID=
+FACEBOOK_CLIENT_TOKEN=
+FACEBOOK_DISPLAY_NAME=Lumora Mobile
+FACEBOOK_URL_SCHEME=fb

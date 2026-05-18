@@ -41,6 +41,7 @@ class EnergyNode extends PositionComponent {
   // Idle oscillation
   double _idleOffsetY = 0.0;
   double _idlePhase = 0.0;
+  double _orbitPhase = 0.0;
 
   // Bounce d'activation
   double _bounceProgress = -1.0; // -1 = pas de bounce
@@ -94,6 +95,7 @@ class EnergyNode extends PositionComponent {
 
     // Idle oscillation verticale (sin wave)
     _idleOffsetY = sin(_pulseTime * 1.5 + _idlePhase) * 2.0;
+    _orbitPhase += dt * (0.8 + _glowIntensity * 0.2);
 
     // Animation de scale (spring amorti)
     _scaleAnimation += (_targetScale - _scaleAnimation) * min(dt * 12, 1.0);
@@ -196,6 +198,54 @@ class EnergyNode extends PositionComponent {
       ).createShader(Rect.fromCircle(center: Offset.zero, radius: haloRadius));
     canvas.drawCircle(Offset.zero, haloRadius, haloPaint);
 
+      final chromaHaloPaint = Paint()
+        ..shader = RadialGradient(
+          colors: [
+            _coreColor.withAlpha((70 * glowMultiplier).toInt().clamp(0, 255)),
+            const Color(0xFFFFFFFF).withAlpha((25 * glowMultiplier).toInt().clamp(0, 255)),
+            const Color(0x00000000),
+          ],
+        ).createShader(Rect.fromCircle(center: Offset.zero, radius: effectiveRadius * 3.4));
+      canvas.drawCircle(Offset.zero, effectiveRadius * 3.4, chromaHaloPaint);
+
+      // ── Anneaux orbitaux lumineux ──
+      final orbitPaint = Paint()
+        ..color = _coreColor.withAlpha((120 * glowMultiplier).toInt().clamp(0, 255))
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.4
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
+      canvas.save();
+      canvas.rotate(_orbitPhase * 0.8);
+      canvas.drawArc(
+        Rect.fromCircle(center: Offset.zero, radius: effectiveRadius * 1.45),
+        0.0,
+        1.9,
+        false,
+        orbitPaint,
+      );
+      canvas.drawArc(
+        Rect.fromCircle(center: Offset.zero, radius: effectiveRadius * 1.8),
+        pi,
+        1.3,
+        false,
+        orbitPaint,
+      );
+      canvas.restore();
+
+      // ── Étincelles orbitales ──
+      for (var index = 0; index < 3; index++) {
+        final sparkAngle = _orbitPhase * (index.isEven ? 1.4 : -1.2) + index * 2.1;
+        final sparkRadius = effectiveRadius * (1.4 + index * 0.22);
+        final sparkOffset = Offset(
+          cos(sparkAngle) * sparkRadius,
+          sin(sparkAngle) * sparkRadius,
+        );
+        final sparkPaint = Paint()
+          ..color = const Color(0xFFFFFFFF).withAlpha((150 - index * 30).clamp(0, 255))
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+        canvas.drawCircle(sparkOffset, effectiveRadius * (0.08 + index * 0.03), sparkPaint);
+      }
+
     // ── Glow interne (multi-couche) ──
     final innerGlowPaint = Paint()
       ..shader = RadialGradient(
@@ -291,6 +341,7 @@ class EnergyNode extends PositionComponent {
     _glowIntensity = 1.0;
     _targetGlowIntensity = 1.0;
     _rotationAngle = 0.0;
+    _orbitPhase = 0.0;
     _rippleProgress = -1.0;
     _bounceProgress = -1.0;
     _flashProgress = -1.0;

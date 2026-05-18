@@ -5,7 +5,7 @@ import { getAuth } from "firebase-admin/auth";
 const db = getFirestore();
 const auth = getAuth();
 
-interface DeleteData {
+export interface DeleteData {
   uid: string;
 }
 

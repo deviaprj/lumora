@@ -3,7 +3,7 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 const db = getFirestore();
 
-interface MergeData {
+export interface MergeData {
   anonymousUid: string;
   authenticatedUid: string;
 }

@@ -37,6 +37,14 @@ class Connection {
       Object.hash(from < to ? from : to, from < to ? to : from);
 }
 
+enum ConnectionAttemptResult {
+  none,
+  valid,
+  invalid,
+  duplicate,
+  shielded,
+}
+
 /// État du jeu — score, vies, coups, timer, connexions, statut.
 ///
 /// Système de vies et coups :
@@ -57,9 +65,18 @@ class GameState extends ChangeNotifier {
   int _score = 0;
   final Set<Connection> _connections = {};
   int _activatedNodes = 0;
+  int _duplicateAttempts = 0;
+  int _invalidAttempts = 0;
+  int _bestCombo = 0;
+  bool _trajectoryBroken = false;
+  double? _lastTrajectoryY;
+  bool _doubleScoreActive = false;
+  bool _superFilamentActive = false;
+  bool _superFilamentConsumed = false;
+  ConnectionAttemptResult _lastAttemptResult = ConnectionAttemptResult.none;
 
   GameState({LevelData? level})
-      : _level = level ?? World1Levels.levels.first,
+      : _level = level ?? LevelCatalog.firstLevel,
         _lives = level?.lives ?? 3,
         _attemptsPerLife = level?.attemptsPerLife ?? 5,
         _timeRemaining = level?.timeLimit ?? 90.0,
@@ -72,9 +89,22 @@ class GameState extends ChangeNotifier {
   int get attemptsPerLife => _attemptsPerLife;
   int get attemptsRemaining => _attemptsRemaining;
   double get timeRemaining => _timeRemaining;
+
+  /// Remet le timer à sa valeur initiale (récompense après vidéo pub).
+  void resetTimer() {
+    _timeRemaining = _level.timeLimit.toDouble();
+    notifyListeners();
+  }
   int get score => _score;
   Set<Connection> get connections => Set.unmodifiable(_connections);
   int get activatedNodes => _activatedNodes;
+  int get duplicateAttempts => _duplicateAttempts;
+  int get invalidAttempts => _invalidAttempts;
+  int get bestCombo => _bestCombo;
+  bool get isDoubleScoreActive => _doubleScoreActive;
+  bool get hasSuperFilament => _superFilamentActive;
+  ConnectionAttemptResult get lastAttemptResult => _lastAttemptResult;
+  List<SecondaryObjective> get secondaryObjectives => _level.secondaryObjectives;
 
   double get maxTime => _level.timeLimit;
   int get maxLives => _level.lives;
@@ -113,6 +143,15 @@ class GameState extends ChangeNotifier {
     _score = 0;
     _connections.clear();
     _activatedNodes = 0;
+    _duplicateAttempts = 0;
+    _invalidAttempts = 0;
+    _bestCombo = 0;
+    _trajectoryBroken = false;
+    _lastTrajectoryY = null;
+    _doubleScoreActive = false;
+    _superFilamentActive = false;
+    _superFilamentConsumed = false;
+    _lastAttemptResult = ConnectionAttemptResult.none;
     _status = GameStatus.idle;
     notifyListeners();
   }
@@ -144,12 +183,24 @@ class GameState extends ChangeNotifier {
   bool tickTimer(double dt) {
     if (_status != GameStatus.playing) return false;
 
-    _timeRemaining -= dt;
+    final drainMultiplier = _level.specialRule == LevelSpecialRule.blackout ? 1.25 : 1.0;
+    _timeRemaining -= dt * drainMultiplier;
     if (_timeRemaining <= 0) {
       _timeRemaining = 0;
-      _status = GameStatus.defeat;
-      notifyListeners();
-      return true;
+      _lives--;
+      if (_lives <= 0) {
+        _lives = 0;
+        _attemptsRemaining = 0;
+        _status = GameStatus.defeat;
+        notifyListeners();
+        return true; // défaite
+      } else {
+        // Il reste des vies : réinitialise le timer et les coups
+        _timeRemaining = _level.timeLimit.toDouble();
+        _attemptsRemaining = _attemptsPerLife;
+        notifyListeners();
+        return false;
+      }
     }
     notifyListeners();
     return false;
@@ -173,17 +224,127 @@ class GameState extends ChangeNotifier {
           (rc.from == from && rc.to == to) ||
           (rc.from == to && rc.to == from),
     );
+    final isDuplicate = _connections.contains(conn);
 
-    if (isValid && !_connections.contains(conn)) {
+    if (isValid && !isDuplicate) {
       // Connexion valide et nouvelle : succès, pas de coût
       _connections.add(conn);
-      _score += 100;
+      _trackTrajectory(from, to);
+      _addScore(100);
+      if (_level.specialRule == LevelSpecialRule.resonance && _connections.length % 3 == 0) {
+        _addScore(150);
+        _timeRemaining = (_timeRemaining + 2.5).clamp(0.0, _level.timeLimit);
+      }
+      _lastAttemptResult = ConnectionAttemptResult.valid;
       _checkVictory();
       notifyListeners();
       return true;
     }
 
+    if (isDuplicate) {
+      _duplicateAttempts++;
+    } else {
+      _invalidAttempts++;
+    }
+
+    if (_superFilamentActive && !_superFilamentConsumed) {
+      _superFilamentConsumed = true;
+      _superFilamentActive = false;
+      _lastAttemptResult = ConnectionAttemptResult.shielded;
+      notifyListeners();
+      return false;
+    }
+
     // Connexion invalide ou dupliquée : coûte un coup
+    _consumeAttempts(_invalidAttemptCost);
+    _lastAttemptResult = isDuplicate
+        ? ConnectionAttemptResult.duplicate
+        : ConnectionAttemptResult.invalid;
+
+    notifyListeners();
+    return false;
+  }
+
+  /// Utilise un indice.
+  ///
+  /// Par défaut, l'indice consomme 1 coup.
+  /// Si les coups atteignent 0, la logique standard applique une perte de vie.
+  /// Retourne false si l'indice n'est pas autorisé (jeu non en cours ou défaite).
+  bool useHint({bool consumeAttempt = true}) {
+    if (_status != GameStatus.playing) {
+      return false;
+    }
+
+    _score = (_score - 50).clamp(0, _score);
+
+    if (consumeAttempt) {
+      _consumeAttempts(_hintAttemptCost);
+    }
+
+    notifyListeners();
+    return true;
+  }
+
+  /// Récompense de vidéo pub: ajoute des vies (clampées au maximum du niveau).
+  ///
+  /// [refillAttempts] permet de redonner les coups pour reprendre immédiatement.
+  void grantLives(int count, {bool refillAttempts = true}) {
+    if (count <= 0) return;
+    _lives = (_lives + count).clamp(0, _level.lives);
+    if (_lives > 0 && refillAttempts) {
+      _attemptsRemaining = _attemptsPerLife;
+    }
+    if (_status == GameStatus.defeat && _lives > 0) {
+      _status = GameStatus.idle;
+    }
+    notifyListeners();
+  }
+
+  void armDoubleScore() {
+    _doubleScoreActive = true;
+    notifyListeners();
+  }
+
+  void armSuperFilament() {
+    _superFilamentActive = true;
+    _superFilamentConsumed = false;
+    notifyListeners();
+  }
+
+  void recordCombo(int combo) {
+    if (combo > _bestCombo) {
+      _bestCombo = combo;
+      notifyListeners();
+    }
+  }
+
+  bool isSecondaryObjectiveCompleted(SecondaryObjective objective) {
+    switch (objective.type) {
+      case SecondaryObjectiveType.noDuplicate:
+        return _duplicateAttempts == 0;
+      case SecondaryObjectiveType.comboChain:
+        return _bestCombo >= objective.threshold;
+      case SecondaryObjectiveType.risingFlow:
+        return !_trajectoryBroken;
+    }
+  }
+
+  int get _invalidAttemptCost =>
+      _level.specialRule == LevelSpecialRule.overload ? 2 : 1;
+
+  int get _hintAttemptCost =>
+      _level.specialRule == LevelSpecialRule.blackout ? 2 : 1;
+
+  void _consumeAttempts(int count) {
+    for (var index = 0; index < count; index++) {
+      if (_status == GameStatus.defeat) {
+        break;
+      }
+      _consumeAttempt();
+    }
+  }
+
+  void _consumeAttempt() {
     _attemptsRemaining--;
 
     if (_attemptsRemaining <= 0) {
@@ -192,21 +353,25 @@ class GameState extends ChangeNotifier {
       if (_lives <= 0) {
         // Plus de vies : défaite
         _lives = 0;
+        _attemptsRemaining = 0;
         _status = GameStatus.defeat;
       } else {
         // Vie suivante : on récupère les coups
         _attemptsRemaining = _attemptsPerLife;
       }
     }
-
-    notifyListeners();
-    return false;
   }
 
-  /// Utilise un indice (réduction du score, pas de coût en coups).
-  void useHint() {
-    _score = (_score - 50).clamp(0, _score);
-    notifyListeners();
+  void _trackTrajectory(int from, int to) {
+    final midpointY = (_level.nodes[from].y + _level.nodes[to].y) / 2;
+    if (_lastTrajectoryY != null && midpointY + 0.03 < _lastTrajectoryY!) {
+      _trajectoryBroken = true;
+    }
+    _lastTrajectoryY = midpointY;
+  }
+
+  void _addScore(int amount) {
+    _score += _doubleScoreActive ? amount * 2 : amount;
   }
 
   /// Vérifie si toutes les connexions sont réalisées.
@@ -217,7 +382,7 @@ class GameState extends ChangeNotifier {
     }
     _status = GameStatus.victory;
     // Bonus de temps
-    _score += (_timeRemaining * 10).toInt();
+    _addScore((_timeRemaining * 10).toInt());
     notifyListeners();
   }
 
@@ -230,6 +395,36 @@ class GameState extends ChangeNotifier {
     _score = 0;
     _connections.clear();
     _activatedNodes = 0;
+    _duplicateAttempts = 0;
+    _invalidAttempts = 0;
+    _bestCombo = 0;
+    _trajectoryBroken = false;
+    _lastTrajectoryY = null;
+    _doubleScoreActive = false;
+    _superFilamentActive = false;
+    _superFilamentConsumed = false;
+    _lastAttemptResult = ConnectionAttemptResult.none;
+    _status = GameStatus.idle;
+    notifyListeners();
+  }
+
+  /// Redémarre le niveau en conservant les vies actuelles.
+  void retryPreservingLives() {
+    _attemptsPerLife = _level.attemptsPerLife;
+    _attemptsRemaining = _attemptsPerLife;
+    _timeRemaining = _level.timeLimit;
+    _score = 0;
+    _connections.clear();
+    _activatedNodes = 0;
+    _duplicateAttempts = 0;
+    _invalidAttempts = 0;
+    _bestCombo = 0;
+    _trajectoryBroken = false;
+    _lastTrajectoryY = null;
+    _doubleScoreActive = false;
+    _superFilamentActive = false;
+    _superFilamentConsumed = false;
+    _lastAttemptResult = ConnectionAttemptResult.none;
     _status = GameStatus.idle;
     notifyListeners();
   }

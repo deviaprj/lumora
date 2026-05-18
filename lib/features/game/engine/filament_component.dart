@@ -34,6 +34,7 @@ class FilamentComponent extends PositionComponent {
 
   // Variation d'épaisseur (effet électrique)
   double _thicknessNoise = 0.0;
+  double _pulseTravel = 0.0;
 
   FilamentComponent({
     required this.startPos,
@@ -114,6 +115,7 @@ class FilamentComponent extends PositionComponent {
 
     // Variation d'épaisseur électrique (noise 1D)
     _thicknessNoise = sin(_glowPhase * 8.0) * 0.3 + sin(_glowPhase * 13.0) * 0.1;
+    _pulseTravel = (_pulseTravel + dt * 0.65) % 1.0;
 
     switch (state) {
       case FilamentState.drawing:
@@ -185,6 +187,16 @@ class FilamentComponent extends PositionComponent {
 
     final glowIntensity = 0.6 + 0.4 * sin(_glowPhase * 2.5);
     final thicknessVariation = 1.0 + _thicknessNoise * 0.15;
+    final beamGradient = Gradient.linear(
+      start,
+      end,
+      [
+        color.withAlpha((120 * glowIntensity).toInt().clamp(0, 255)),
+        const Color(0xFFFFFFFF).withAlpha((180 * glowIntensity).toInt().clamp(0, 255)),
+        color.withAlpha((220 * glowIntensity).toInt().clamp(0, 255)),
+      ],
+      const [0.0, 0.48, 1.0],
+    );
 
     // ── Couche 1 : Glow externe large ──
     final glowPaint = Paint()
@@ -206,7 +218,7 @@ class FilamentComponent extends PositionComponent {
 
     // ── Couche 3 : Filament principal ──
     final linePaint = Paint()
-      ..color = color.withAlpha((220 * glowIntensity).toInt().clamp(0, 255))
+      ..shader = beamGradient
       ..strokeWidth = (3.0 * thicknessVariation).clamp(2.0, 5.0)
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
@@ -219,6 +231,14 @@ class FilamentComponent extends PositionComponent {
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
     canvas.drawPath(path, corePaint);
+
+    final pulsePoint = _bezierPoint(_pulseTravel, _startLocal, _c1Local, _c2Local, _endLocal);
+    final pulseGlow = Paint()
+      ..color = const Color(0xFFFFFFFF).withAlpha((170 * glowIntensity).toInt().clamp(0, 255))
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    final pulseCore = Paint()..color = color.withAlpha((230 * glowIntensity).toInt().clamp(0, 255));
+    canvas.drawCircle(pulsePoint, 8.0 * glowIntensity, pulseGlow);
+    canvas.drawCircle(pulsePoint, 3.0 * glowIntensity, pulseCore);
 
     // ── Particules du trail (mode connecté uniquement) ──
     for (final p in _trail) {

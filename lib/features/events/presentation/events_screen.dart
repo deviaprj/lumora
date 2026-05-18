@@ -1,13 +1,93 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
+import '../../monetization/data/reward_inventory.dart';
+import '../../monetization/data/rewarded_ad_service.dart';
 import '../../../shared/widgets/lumora_button.dart';
 import '../../../shared/widgets/lumora_card.dart';
 
 /// Écran événements — cartes organiques pour chaque événement actif,
 /// compte à rebours circulaire, fond parallaxe saisonnier placeholder.
-class EventsScreen extends StatelessWidget {
-  const EventsScreen({super.key});
+class EventsScreen extends StatefulWidget {
+  final RewardedAdService? rewardedAdService;
+
+  const EventsScreen({super.key, this.rewardedAdService});
+
+  @override
+  State<EventsScreen> createState() => _EventsScreenState();
+}
+
+class _EventsScreenState extends State<EventsScreen> {
+  late final RewardedAdService _rewardedAdService;
+  late final RewardInventory _rewardInventory;
+  bool _isRewardPending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _rewardedAdService = widget.rewardedAdService ?? AdMobRewardedAdService.instance;
+    _rewardInventory = RewardInventory.instance;
+    _rewardInventory.addListener(_onInventoryChanged);
+    _initializeState();
+  }
+
+  Future<void> _initializeState() async {
+    await _rewardInventory.load();
+    await _rewardedAdService.initialize();
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _onInventoryChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _claimEventReward(_EventReward reward) async {
+    if (_isRewardPending) {
+      return;
+    }
+
+    if (!_rewardInventory.canClaim(reward.placement)) {
+      final cooldown = _rewardInventory.remainingCooldown(reward.placement) ?? Duration.zero;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Bonus déjà récupéré. Retour dans ${_formatCooldown(cooldown)}.')),
+      );
+      return;
+    }
+
+    setState(() => _isRewardPending = true);
+    final rewardEarned = await _rewardedAdService.showRewardedAd(
+      placement: reward.placement,
+      onRewardEarned: () {},
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _isRewardPending = false);
+
+    if (!rewardEarned) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Video indisponible pour le moment.')),
+      );
+      return;
+    }
+
+    _rewardInventory.claim(reward.placement);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${reward.message} Stock sauvegardé.')),
+    );
+  }
+
+  @override
+  void dispose() {
+    _rewardInventory.removeListener(_onInventoryChanged);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +99,12 @@ class EventsScreen extends StatelessWidget {
         reward: '1 vie + 1 étoile bonus',
         colors: [LumoraColors.auroraGreen, LumoraColors.auroraBlue],
         icon: Icons.wb_sunny_rounded,
+        rewardedOffer: const _EventReward(
+          id: 'event_daily_boost',
+          ctaLabel: 'Booster via vidéo',
+          message: 'Bonus quotidien récupéré : +1 vie et aide légère.',
+          placement: RewardedPlacement.eventDailyBoost,
+        ),
       ),
       _EventItem(
         title: 'Défi Week-End',
@@ -27,6 +113,12 @@ class EventsScreen extends StatelessWidget {
         reward: '3 vies + avatar exclusif',
         colors: [LumoraColors.auroraPurple, LumoraColors.auroraPink],
         icon: Icons.weekend_rounded,
+        rewardedOffer: const _EventReward(
+          id: 'event_weekend_boost',
+          ctaLabel: 'Super Filament via vidéo',
+          message: 'Charge Super Filament ajoutée à ton inventaire.',
+          placement: RewardedPlacement.eventWeekendBoost,
+        ),
       ),
       _EventItem(
         title: 'Tournoi Automatique',
@@ -35,6 +127,12 @@ class EventsScreen extends StatelessWidget {
         reward: 'Thème Champion exclusif',
         colors: [LumoraColors.auroraGold, LumoraColors.energyAmber],
         icon: Icons.emoji_events_rounded,
+        rewardedOffer: const _EventReward(
+          id: 'event_tournament_boost',
+          ctaLabel: 'Double Score via vidéo',
+          message: 'Charge Double Score ajoutée à ton inventaire.',
+          placement: RewardedPlacement.eventTournamentBoost,
+        ),
       ),
       _EventItem(
         title: 'Happy Hour',
@@ -43,6 +141,12 @@ class EventsScreen extends StatelessWidget {
         reward: '2 vies par vidéo',
         colors: [LumoraColors.lifeCoral, LumoraColors.auroraPink],
         icon: Icons.local_bar_rounded,
+        rewardedOffer: const _EventReward(
+          id: 'event_happy_hour',
+          ctaLabel: 'Réclamer le bonus x2',
+          message: 'Happy Hour : 2 vies bonus ajoutées pour cette session.',
+          placement: RewardedPlacement.eventHappyHour,
+        ),
       ),
     ];
 
@@ -83,6 +187,11 @@ class EventsScreen extends StatelessWidget {
                       ],
                     ),
                   ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _EventInventoryBanner(inventory: _rewardInventory),
+                  ),
+                  const SizedBox(height: 8),
 
                   // Liste d'événements
                   Expanded(
@@ -92,7 +201,18 @@ class EventsScreen extends StatelessWidget {
                       itemBuilder: (context, index) {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 16),
-                          child: _EventCard(event: events[index]),
+                          child: _EventCard(
+                            event: events[index],
+                            isRewardPending: _isRewardPending,
+                            rewardAvailable: events[index].rewardedOffer == null ||
+                              _rewardInventory.canClaim(events[index].rewardedOffer!.placement),
+                            cooldown: events[index].rewardedOffer == null
+                              ? null
+                              : _rewardInventory.remainingCooldown(events[index].rewardedOffer!.placement),
+                            onRewardTap: events[index].rewardedOffer == null
+                                ? null
+                                : () => _claimEventReward(events[index].rewardedOffer!),
+                          ),
                         );
                       },
                     ),
@@ -114,6 +234,7 @@ class _EventItem {
   final String reward;
   final List<Color> colors;
   final IconData icon;
+  final _EventReward? rewardedOffer;
 
   _EventItem({
     required this.title,
@@ -122,13 +243,38 @@ class _EventItem {
     required this.reward,
     required this.colors,
     required this.icon,
+    this.rewardedOffer,
+  });
+}
+
+class _EventReward {
+  final String id;
+  final String ctaLabel;
+  final String message;
+  final RewardedPlacement placement;
+
+  const _EventReward({
+    required this.id,
+    required this.ctaLabel,
+    required this.message,
+    required this.placement,
   });
 }
 
 class _EventCard extends StatelessWidget {
   final _EventItem event;
+  final bool isRewardPending;
+  final bool rewardAvailable;
+  final Duration? cooldown;
+  final VoidCallback? onRewardTap;
 
-  const _EventCard({required this.event});
+  const _EventCard({
+    required this.event,
+    required this.isRewardPending,
+    required this.rewardAvailable,
+    required this.cooldown,
+    required this.onRewardTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -250,10 +396,103 @@ class _EventCard extends StatelessWidget {
             gradientColors: event.colors,
             elevation: 4,
           ),
+          if (event.rewardedOffer != null) ...[
+            const SizedBox(height: 10),
+            LumoraButton(
+              onPressed: !rewardAvailable || isRewardPending ? null : onRewardTap,
+              text: isRewardPending
+                  ? 'Chargement vidéo...'
+                  : !rewardAvailable
+                      ? 'Recharge ${_formatCooldown(cooldown)}'
+                      : event.rewardedOffer!.ctaLabel,
+              gradientColors: [LumoraColors.midnight, event.colors.last],
+              elevation: 3,
+            ),
+          ],
         ],
       ),
     );
   }
+}
+
+class _EventInventoryBanner extends StatelessWidget {
+  final RewardInventory inventory;
+
+  const _EventInventoryBanner({required this.inventory});
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Wrap(
+        spacing: 10,
+        children: [
+          _InventoryBadge(
+            icon: Icons.favorite_rounded,
+            label: 'Réserve ${inventory.bankedLives}',
+            accent: LumoraColors.lifeCoral,
+          ),
+          _InventoryBadge(
+            icon: Icons.lightbulb_rounded,
+            label: 'Indices ${inventory.hintCharges}',
+            accent: LumoraColors.energyAmber,
+          ),
+          _InventoryBadge(
+            icon: Icons.bolt_rounded,
+            label: 'Double ${inventory.doubleScoreCharges}',
+            accent: LumoraColors.auroraGold,
+          ),
+          _InventoryBadge(
+            icon: Icons.polyline_rounded,
+            label: 'Filaments ${inventory.superFilamentCharges}',
+            accent: LumoraColors.auroraBlue,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InventoryBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color accent;
+
+  const _InventoryBadge({
+    required this.icon,
+    required this.label,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(LumoraRadii.bubble),
+        color: accent.withAlpha(28),
+        border: Border.all(color: accent.withAlpha(70)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 14),
+          const SizedBox(width: 6),
+          Text(label, style: LumoraTextStyles.label(color: Colors.white)),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatCooldown(Duration? duration) {
+  if (duration == null) {
+    return '';
+  }
+  if (duration.inHours > 0) {
+    return '${duration.inHours}h${duration.inMinutes.remainder(60).toString().padLeft(2, '0')}';
+  }
+  return '${duration.inMinutes} min';
 }
 
 /// Painter placeholder pour le fond parallaxe saisonnier.

@@ -1,5 +1,72 @@
 # Décisions de design — Lumora Mobile
 
+## Session 2026-05-17
+
+### D6 : Progression hybride artisanale + procedurale
+**Décision** : Conserver une ouverture en niveaux faits main (1–10), puis basculer sur une generation procedurale infinie.
+
+**Pourquoi** : Les premiers niveaux servent de tutoriel invisible et de reference qualitative. La generation infinie prend ensuite le relais pour offrir de la rejouabilite sans attendre du contenu artisanal massif.
+
+### D7 : Regles speciales lisibles plutot qu'une complexite cachée
+**Décision** : Les paliers proceduraux introduisent des regles nommees (`Flux stable`, `Surcharge`, `Resonance`, `Blackout`) affichees directement dans l'UI.
+
+**Pourquoi** : La difficulte devient compréhensible. Le joueur sait pourquoi un niveau est plus exigeant sans avoir l'impression d'une punition arbitraire.
+
+### D8 : Une seule logique de video recompensee
+**Décision** : Centraliser la video recompensee pour le gameplay, la boutique et les evenements via le meme service AdMob.
+
+**Pourquoi** : Un pipeline unique simplifie la maintenance, la mesure analytique et garantit une UX coherente. Les pubs restent opt-in et contextuelles.
+
+### D9 : Reprise apres defaite graduelle
+**Décision** : Sur un echec, la premiere video rend 1 vie, la seconde 2 vies, puis l'offre disparait.
+
+**Pourquoi** : Cela aide a repartir sans transformer la defaite en ressource infinie. Le joueur garde une sensation de rattrapage, pas d'exploitation.
+
+### D10 : Amplification visuelle guidee par la lisibilite
+**Décision** : Renforcer les nœuds, filaments et overlays avec plus d'eclat, d'orbites et de pulses, sans ajouter de bruit fonctionnel.
+
+**Pourquoi** : L'objectif n'est pas seulement de faire plus beau, mais de rendre les points d'accroche visuels plus memorables et plus lisibles pendant l'action.
+
+### D11 : La maitrise doit etre suivie comme une boucle produit a part entiere
+**Décision** : Emmettre un evenement analytique dedie `mastery_reward_granted` au moment de la victoire, avec fallback local si Firebase n'est pas initialise.
+
+**Pourquoi** : La meta-boucle de maitrise influence directement retention, reutilisation des charges et rejouabilite. Il faut pouvoir la mesurer des maintenant sans bloquer le developpement local ni casser la build tant que la configuration Firebase mobile n'est pas dans le repo.
+
+### D12 : La world map doit montrer non seulement l'acces, mais l'etat de maitrise
+**Décision** : Ajouter sur la carte des mondes un filtre visuel de maitrise (`A gagner`, `En cours`, `Complete`) et des marqueurs differencies sur chaque bulle.
+
+**Pourquoi** : Une simple numerotation ne suffit pas a guider la rejouabilite. Le joueur doit voir instantanement quels niveaux peuvent encore enrichir son inventaire, lesquels sont partiellement maitrises, et lesquels sont totalement exploites.
+
+### D13 : La beta doit prioriser la fiabilite du build mobile avant toute nouvelle surcouche SDK
+**Décision** : Corriger d'abord le toolchain Android (Kotlin/Gradle) avant d'ajouter d'autres briques dependantes comme Firebase Auth complet, Remote Config ou RevenueCat.
+
+**Pourquoi** : Tant que `assembleDebug` casse sur `firebase_analytics:compileDebugKotlin`, chaque nouvelle integration mobile augmente le cout de diagnostic sans faire progresser la validation produit. La beta a besoin d'un pipeline installable avant d'avoir plus de services.
+
+### D14 : La progression persistante devient une couche produit a part entiere
+**Décision** : Introduire une vraie source de verite locale pour la progression joueur (`completedLevelId`, mondes vus, regles vues, maitrise resumee), distincte du seul transport de parametres via le router.
+
+**Pourquoi** : La world map, la retention, les reprises de session et la future authentification n'ont plus assez de contexte si la progression ne vit qu'en memoire ou en query param. La beta doit redonner au joueur son etat reel sans friction.
+
+### D15 : L'authentification doit etre branchee sans casser le parcours invite
+**Décision** : Conserver un flux invite pleinement jouable, puis proposer le lien vers Google/Apple/Email comme une consolidation de progression et non comme un mur d'entree.
+
+**Pourquoi** : Lumora repose sur une adoption immediate. Forcer trop tot l'auth ferait baisser l'activation, alors que la beta a surtout besoin de mesurer la boucle coeur et la retention courte.
+
+### D16 : Les assets illustres doivent remplacer le proceduriel de facon selective, pas brutale
+**Décision** : Prioriser des PNG de parallax et de fond sur les surfaces les plus visibles (gameplay, events, mondes phares), tout en gardant le proceduriel comme fallback robuste.
+
+**Pourquoi** : Le proceduriel actuel assure la continuite visuelle et la securite de build. Le remplacer partout d'un coup augmenterait la dette asset et les risques de regression sans gain proportionnel sur la perception beta.
+
+### D17 : La beta doit renforcer la retention avant de renforcer la monetisation
+**Décision** : Prioriser les boucles de maitrise, progression persistante, defi quotidien, polish UX et tests device avant les IAP complexes et le passe saisonnier.
+
+**Pourquoi** : La monétisation actuelle opt-in suffit pour tester l'acceptation de la boucle récompensée. Avant d'ajouter RevenueCat et des offres payantes, il faut s'assurer que la base est rejouable, stable et mesurable.
+
+### D18 : Les tests device deviennent un gate de release, pas seulement un confort de dev
+**Décision** : Une fois le build Android rétabli, la suite device doit couvrir les flows critiques de la beta: lancement, auth invité, game loop, reward inventory, vidéos récompensées, world map et retour session.
+
+**Pourquoi** : Le coeur de Lumora se juge sur un vrai appareil: fluidité, navigation, overlays, contraintes MIUI et stabilité du build. Sans ce garde-fou, les regressions mobile restent invisibles trop longtemps.
+
 ## Session 2026-05-11
 
 ### D1 : Système vies/coups séparé

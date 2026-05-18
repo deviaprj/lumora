@@ -1,6 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/auth_screen.dart';
+import '../features/game/data/player_progression_service.dart';
 import '../features/game/domain/level_data.dart';
 import '../features/game/presentation/game_screen.dart';
 import '../features/game/presentation/world_map_screen.dart';
@@ -11,8 +16,28 @@ import '../shared/widgets/lumora_button.dart';
 import '../shared/widgets/lumora_card.dart';
 import 'theme.dart';
 
-// TODO: Remplacer par un Riverpod provider d'auth réel.
-bool isAuthenticated = false;
+class _GoRouterRefreshStream extends ChangeNotifier {
+  _GoRouterRefreshStream(Stream<dynamic> stream) {
+    _subscription = stream.asBroadcastStream().listen((_) => notifyListeners());
+  }
+
+  late final StreamSubscription<dynamic> _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
+
+Stream<dynamic> _authStateChangesSafely() {
+  if (Firebase.apps.isEmpty) {
+    return const Stream<dynamic>.empty();
+  }
+  return FirebaseAuth.instance.authStateChanges();
+}
+
+late final _authRefresh = _GoRouterRefreshStream(_authStateChangesSafely());
 
 /// Transition organique — fade + scale élastique (depuis la droite).
 CustomTransitionPage<void> _buildPage({
@@ -146,12 +171,19 @@ CustomTransitionPage<void> _gameTransition({
   );
 }
 
-final appRouter = GoRouter(
+late final appRouter = GoRouter(
   initialLocation: '/splash',
   debugLogDiagnostics: true,
+  refreshListenable: _authRefresh,
   redirect: (BuildContext context, GoRouterState state) {
-    final isAuth = isAuthenticated;
+    final hasFirebase = Firebase.apps.isNotEmpty;
     final location = state.uri.path;
+
+    if (!hasFirebase) {
+      return null;
+    }
+
+    final isAuth = FirebaseAuth.instance.currentUser != null;
 
     final publicRoutes = ['/splash', '/auth'];
     if (publicRoutes.contains(location)) return null;
@@ -196,10 +228,14 @@ final appRouter = GoRouter(
       path: '/world-map',
       pageBuilder: (context, state) {
         final completedId = state.uri.queryParameters['completed'];
+        final persistedCompletedId = PlayerProgressionService.instance.completedLevelId;
+        final routeCompletedId = completedId != null ? int.tryParse(completedId) ?? 0 : 0;
         return _worldMapTransition(
           state: state,
           child: WorldMapScreen(
-            completedLevelId: completedId != null ? int.tryParse(completedId) ?? 0 : 0,
+            completedLevelId: routeCompletedId > persistedCompletedId
+                ? routeCompletedId
+                : persistedCompletedId,
           ),
         );
       },

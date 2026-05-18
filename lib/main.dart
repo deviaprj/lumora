@@ -2,10 +2,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flame/flame.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app/router.dart';
 import 'app/theme.dart';
+import 'core/firebase_options_fallback.dart';
+import 'features/auth/data/auth_startup_smoke.dart';
+import 'features/game/data/player_progression_service.dart';
 
 /// Entry point Lumora — initialise Firebase, Flame, AdMob, RevenueCat puis runApp.
 ///
@@ -27,6 +31,8 @@ Future<void> main() async {
 
   // Initialisation conditionnelle des SDK tiers
   await _initializeThirdPartySDKs();
+  await AuthStartupSmoke.runIfEnabled();
+  await PlayerProgressionService.instance.load();
 
   runApp(
     const ProviderScope(
@@ -37,10 +43,20 @@ Future<void> main() async {
 
 Future<void> _initializeThirdPartySDKs() async {
   try {
-    // Firebase — initialisé uniquement si la configuration est présente
-    const firebaseApiKey = String.fromEnvironment('FIREBASE_API_KEY');
-    if (firebaseApiKey.isNotEmpty && !Platform.isLinux) {
-      // TODO: await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    // Firebase — tentative native d'abord, fallback via dart-define si les fichiers
+    // natifs ne sont pas embarqués dans le repo courant.
+    if ((Platform.isAndroid || Platform.isIOS || Platform.isMacOS) && Firebase.apps.isEmpty) {
+      try {
+        await Firebase.initializeApp();
+      } catch (nativeError) {
+        final fallbackOptions = FirebaseOptionsFallback.currentPlatform;
+        if (fallbackOptions == null) {
+          rethrow;
+        }
+
+        debugPrint('Firebase native init unavailable, fallback to dart-define options: $nativeError');
+        await Firebase.initializeApp(options: fallbackOptions);
+      }
     }
 
     // AdMob — initialisé uniquement sur mobile et si la clé est présente

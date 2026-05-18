@@ -113,7 +113,7 @@ void main() {
     testWidgets('09 GameState : démarrage', (tester) async {
       final gameState = GameState(level: World1Levels.levels.first);
       expect(gameState.status, GameStatus.idle);
-      expect(gameState.lives, 5);
+      expect(gameState.lives, 3);
       gameState.start();
       expect(gameState.status, GameStatus.playing);
     });
@@ -162,7 +162,7 @@ void main() {
 
     testWidgets('15 LevelData : niveaux valides', (tester) async {
       final levels = World1Levels.levels;
-      expect(levels.length, 5);
+      expect(levels.length, 10);
       for (final level in levels) {
         expect(level.nodes.isNotEmpty, true);
         for (final conn in level.requiredConnections) {
