@@ -107,7 +107,7 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _onDefeat() {
-    if (!mounted) return;
+    if (!mounted || _showDefeat) return; // guard double-appel
     unawaited(SoundManager().playDefeatSound());
     setState(() {
       _showDefeat = true;
@@ -120,7 +120,13 @@ class _GameScreenState extends State<GameScreen> {
 
     void applyChange() {
       if (!mounted) return;
-      // Vie perdue par expiration du timer (partie toujours en cours)
+      // Défaite par coups épuisés (toutes les vies perdues via addConnection)
+      if (state.status == GameStatus.defeat && !_showDefeat && !_showVictory) {
+        _previousLives = state.lives;
+        _onDefeat();
+        return;
+      }
+      // Vie perdue (coups épuisés mais vies restantes, ou timer avec vies restantes)
       if (state.lives < _previousLives && state.status == GameStatus.playing) {
         _game.pauseGame();
         setState(() {

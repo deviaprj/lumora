@@ -442,7 +442,7 @@ class HomeScreen extends StatelessWidget {
                   title: 'Événements',
                   subtitle: 'Défis et récompenses',
                   gradientColors: [LumoraColors.auroraOrange, LumoraColors.auroraGold],
-                  onTap: () => context.go('/events'),
+                  onTap: () => context.push('/events'),
                 ),
                 const SizedBox(height: 12),
 
@@ -452,7 +452,7 @@ class HomeScreen extends StatelessWidget {
                   title: 'Boutique',
                   subtitle: 'Thèmes et power-ups',
                   gradientColors: [LumoraColors.auroraPurple, LumoraColors.auroraPink],
-                  onTap: () => context.go('/shop'),
+                  onTap: () => context.push('/shop'),
                 ),
                 const Spacer(),
               ],
