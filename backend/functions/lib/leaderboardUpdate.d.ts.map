@@ -1,0 +1,1 @@
+{"version":3,"file":"leaderboardUpdate.d.ts","sourceRoot":"","sources":["../src/leaderboardUpdate.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,cAAc,EAAE,MAAM,EAAE,gBAAgB,EAAE,MAAM,iCAAiC,CAAC;AAe3F,eAAO,MAAM,OAAO,GAClB,OAAO,cAAc,CAAC,MAAM,CAAC,gBAAgB,CAAC,GAAG,SAAS,EAAE;IAAE,GAAG,EAAE,MAAM,CAAA;CAAE,CAAC,KAC3E,OAAO,CAAC,IAAI,CAuCd,CAAC"}

@@ -1,10 +1,9 @@
-import { CloudEvent } from "firebase-functions/v2/core";
 import { getFirestore } from "firebase-admin/firestore";
 
 const db = getFirestore();
 const BATCH_SIZE = 500;
 
-export const handler = async (_event: CloudEvent<unknown>): Promise<void> => {
+export const handler = async (): Promise<void> => {
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
   const todayStr = today.toISOString().slice(0, 10);

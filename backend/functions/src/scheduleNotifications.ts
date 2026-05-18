@@ -1,4 +1,3 @@
-import { CloudEvent } from "firebase-functions/v2/core";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 
@@ -98,14 +97,13 @@ function getUserLocalHour(timestamp: Timestamp, timezone: string): number {
   }
 }
 
-export const handler = async (_event: CloudEvent<unknown>): Promise<void> => {
+export const handler = async (): Promise<void> => {
   const now = Timestamp.now();
   const nowDate = now.toDate();
 
   for (const segment of SEGMENTS) {
     // Only run segment if current UTC hour is close to the target local hour window
     // We run every hour, so we check if the segment should be processed now
-    const targetUtcHour = segment.timeHourLocal; // simplified: we blast by UTC hour for simplicity
     // Better: query users whose local hour matches target
 
     let query = db

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/auth_screen.dart';
 import '../features/game/data/player_progression_service.dart';
@@ -12,8 +15,21 @@ import '../shared/widgets/lumora_button.dart';
 import '../shared/widgets/lumora_card.dart';
 import 'theme.dart';
 
-// TODO: Remplacer par un Riverpod provider d'auth réel.
-bool isAuthenticated = false;
+class _GoRouterRefreshStream extends ChangeNotifier {
+  _GoRouterRefreshStream(Stream<dynamic> stream) {
+    _subscription = stream.asBroadcastStream().listen((_) => notifyListeners());
+  }
+
+  late final StreamSubscription<dynamic> _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
+
+final _authRefresh = _GoRouterRefreshStream(FirebaseAuth.instance.authStateChanges());
 
 /// Transition organique — fade + scale élastique (depuis la droite).
 CustomTransitionPage<void> _buildPage({
@@ -150,8 +166,9 @@ CustomTransitionPage<void> _gameTransition({
 final appRouter = GoRouter(
   initialLocation: '/splash',
   debugLogDiagnostics: true,
+  refreshListenable: _authRefresh,
   redirect: (BuildContext context, GoRouterState state) {
-    final isAuth = isAuthenticated;
+    final isAuth = FirebaseAuth.instance.currentUser != null;
     final location = state.uri.path;
 
     final publicRoutes = ['/splash', '/auth'];

@@ -110,6 +110,33 @@ Tous les 20 niveaux, un **Gardien** apparaît. Ce n'est pas un combat : c'est un
 
 ## Les mondes et les niveaux
 
+### Clarification importante (build actuelle)
+
+Les points ci-dessous decrivent le comportement reel de la build actuelle et priment en cas de doute:
+
+1. La progression est sequentielle: un niveau devient disponible quand le precedent est complete.
+2. Les etoiles servent au score et a la maitrise, mais ne verrouillent pas encore l'acces aux mondes.
+3. Le changement de monde est determine par le niveau charge (theme du niveau), pas par un bouton manuel dans l'ecran de jeu.
+
+### Comment passer un niveau
+
+1. Realisez toutes les connexions requises du niveau.
+2. L'ecran de victoire s'affiche avec etoiles, score et recompenses.
+3. Utilisez "Niveau Suivant" pour enchaîner directement.
+4. Depuis la carte, vous pouvez relancer un niveau deja accessible.
+
+### Comment changer de monde
+
+Il n'existe pas encore de selecteur manuel de monde en gameplay. Pour changer de monde:
+
+1. Ouvrez la carte des mondes.
+2. Lancez un niveau disponible du theme voulu.
+3. Si le niveau est verrouille, completez les niveaux precedents.
+
+### Zone de jeu et barres UI
+
+Les barres UI du haut (niveau, score, vies/coups, timer, pause, indice, inventaire et chips de regle) occupent une zone reservee. Les gemmes/noeuds sont places dans une zone de jeu dediee qui exclut cette zone UI, pour eviter les superpositions.
+
 Lumora fonctionne maintenant en deux temps :
 - **Niveaux 1 à 10** : niveaux artisanaux pour apprendre les bases et monter progressivement en intensité.
 - **À partir du niveau 11** : mondes procéduraux infinis, avec variations de densité, de couches et de règles.
@@ -138,10 +165,12 @@ Chaque niveau affiche aussi une règle spéciale :
 Ces objectifs sont optionnels : ils ne vous empêchent jamais de finir le niveau, mais ils enrichissent votre stratégie et vos récompenses.
 
 ### Débloquer un monde
-Pour débloquer un nouveau monde, vous devez accumuler un certain nombre d'**étoiles** dans les mondes précédents. Par exemple, pour accéder au Monde 2 (Crépuscule Violet), il vous faut 30 étoiles au total dans le Monde 1.
+Dans la build actuelle, le deblocage est principalement **sequentiel par niveau complete**. Les etoiles restent importantes pour le score et la maitrise, mais elles ne sont pas encore le verrou principal d'acces.
 
 ### Les niveaux verrouillés
-Sur la carte des mondes, les niveaux que vous n'avez pas encore atteints apparaissent sous forme de **bulles grises translucides** avec un petit cadenas. Vous ne pouvez pas sauter un niveau non débloqué, sauf en utilisant une **vidéo récompensée** (une fois par tranche de 24 heures).
+Sur la carte des mondes, les niveaux que vous n'avez pas encore atteints apparaissent sous forme de **bulles grises translucides** avec un petit cadenas.
+
+Dans la build actuelle, le saut direct de niveau via video n'est pas le flux principal implemente. Le flux video actif et garanti sert surtout a la **reprise apres defaite** pour regagner des vies.
 
 ---
 
@@ -157,12 +186,20 @@ Chaque niveau vous donne **3 vies**. Chaque vie contient aussi un stock de **cou
 - Si toutes vos vies tombent à zéro, le niveau est perdu.
 
 ### Comment récupérez-vous des vies ?
-- **Après une défaite** : une vidéo récompensée peut vous redonner **+1 vie**, puis une seconde vidéo peut vous donner **+2 vies** sur ce même échec.
-- **Boutique** : certains produits proposent un bonus vidéo qui ajoute une **vie de réserve persistante**.
-- **Événements** : certains défis proposent des boosts vidéo qui alimentent aussi votre stock persistant.
+Dans le flux gameplay actuel:
+
+1. En cas de defaite avec 0 vie, vous pouvez regarder une video recompensee.
+2. 1ere video du meme echec: **+1 vie**.
+3. 2e video du meme echec: **+2 vies**.
+4. Les vies sont plafonnees au maximum du niveau (3 vies sur les niveaux actuels).
+5. Si la video est indisponible, aucune vie n'est ajoutee.
+
+Des placements video existent aussi pour boutique/evenements, mais la reprise apres defaite est le cas principal visible en jeu.
 
 ### Que se passe-t-il si vous n'avez plus de vies ?
 Si vos vies tombent à zéro pendant un niveau, vous pouvez soit revenir à la carte, soit utiliser la vidéo récompensée de reprise. Lumora ne force jamais la lecture : la décision reste la vôtre.
+
+Si vous avez des vies de reserve dans l'inventaire, vous pouvez d'abord les consommer pour relancer sans video.
 
 **Important** : vous ne perdez jamais votre progression (étoiles, niveaux débloqués, cosmétiques) en manquant de vies. Seulement la possibilité de jouer immédiatement.
 
@@ -464,15 +501,21 @@ Votre progression est synchronisée automatiquement avec le cloud à chaque fin 
 ## FAQ et dépannage
 
 ### J'ai perdu toutes mes vies. Que faire ?
-- Attendez 20 minutes pour que 1 vie se régénère.
-- Regardez une vidéo récompensée depuis l'écran d'accueil ou la boutique.
-- Achetez un pack de vies dans la boutique si vous le souhaitez.
-- Revenez demain pour récupérer votre récompense quotidienne.
+Dans la build actuelle:
+
+1. Utilisez une vie de reserve si vous en avez.
+2. Sinon, regardez une video recompensee de reprise (+1 puis +2 vies max sur le meme echec).
+3. Ou revenez a la carte des mondes pour relancer un autre niveau disponible.
 
 ### J'ai bloqué sur un niveau. Comment passer ?
 - Utilisez le **bouton Indice** (ampoule) en haut à droite.
-- Échouez 3 fois de suite : le jeu vous proposera automatiquement un indice gratuit ou une vidéo pour passer le niveau.
+- Le flux le plus fiable actuellement est : indice, retry, ou reprise via video apres defaite.
 - Rejouez un niveau plus facile pour vous détendre et revenir plus tard avec un regard neuf.
+
+### Je ne comprends pas comment aller vers un autre monde
+1. Ouvrez la **Carte des mondes**.
+2. Selectionnez un niveau disponible du theme que vous souhaitez.
+3. Si le prochain palier est verrouille, terminez le niveau precedent pour l'ouvrir.
 
 ### Mes achats n'apparaissent pas
 1. Allez dans **Paramètres > Restaurer les Achats**.

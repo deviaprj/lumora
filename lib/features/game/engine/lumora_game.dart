@@ -112,10 +112,11 @@ class LumoraGame extends FlameGame
     _comboTimer = 0.0;
 
     final canvasSize = size;
+    final gameplayRect = _computeGameplayRect(canvasSize);
 
     // Générer des positions aléatoires pour les nœuds
     final randomPositions =
-        _generateRandomPositions(levelData.nodes.length, canvasSize);
+      _generateRandomPositions(levelData.nodes.length, gameplayRect);
 
     // Créer les nœuds d'énergie aux positions aléatoires
     for (var i = 0; i < levelData.nodes.length; i++) {
@@ -132,31 +133,62 @@ class LumoraGame extends FlameGame
 
     // Créer la Lumie au centre
     _lumie = LumieComponent(
-      initialPosition: Vector2(canvasSize.x / 2, canvasSize.y / 2),
+      initialPosition: Vector2(gameplayRect.center.dx, gameplayRect.center.dy),
     );
     add(_lumie);
   }
 
+  /// Zone de jeu qui exclut les barres UI superieures et conserve
+  /// une marge de confort en bas/cotes pour les interactions.
+  Rect _computeGameplayRect(Vector2 canvasSize) {
+    final sideInset = (canvasSize.x * 0.1).clamp(34.0, 74.0).toDouble();
+    final topInset = (canvasSize.y * 0.28).clamp(170.0, 290.0).toDouble();
+    final bottomInset = (canvasSize.y * 0.08).clamp(46.0, 96.0).toDouble();
+
+    var left = sideInset;
+    var top = topInset;
+    var right = canvasSize.x - sideInset;
+    var bottom = canvasSize.y - bottomInset;
+
+    // Fallback pour petits ecrans: garantir une hauteur jouable minimale.
+    const minPlayableHeight = 220.0;
+    if (bottom - top < minPlayableHeight) {
+      top = (canvasSize.y * 0.22).clamp(120.0, 220.0).toDouble();
+      bottom = (canvasSize.y * 0.94).clamp(top + minPlayableHeight, canvasSize.y - 12).toDouble();
+      left = (canvasSize.x * 0.08).clamp(24.0, 56.0).toDouble();
+      right = (canvasSize.x - left).toDouble();
+    }
+
+    return Rect.fromLTRB(left, top, right, bottom);
+  }
+
   /// Génère des positions semi-aléatoires: on garde la topologie du niveau
   /// (positions de base) puis on applique un léger jitter.
-  List<Vector2> _generateRandomPositions(int count, Vector2 canvasSize) {
+  List<Vector2> _generateRandomPositions(
+    int count,
+    Rect gameplayRect,
+  ) {
     final positions = <Vector2>[];
-    final margin = 60.0;
+    final margin = 30.0;
     final minDistance = 72.0;
     final maxAttempts = 80;
     final jitter = 36.0;
     final rng = Random();
 
     for (var i = 0; i < count; i++) {
-      final base = levelData.nodes[i].toAbsolute(canvasSize);
+      final normalized = levelData.nodes[i];
+      final base = Vector2(
+        gameplayRect.left + normalized.x * gameplayRect.width,
+        gameplayRect.top + normalized.y * gameplayRect.height,
+      );
       Vector2? pos;
 
       for (var attempt = 0; attempt < maxAttempts; attempt++) {
         final candidate = Vector2(
           (base.x + (rng.nextDouble() * 2 - 1) * jitter)
-              .clamp(margin, canvasSize.x - margin),
+            .clamp(gameplayRect.left + margin, gameplayRect.right - margin),
           (base.y + (rng.nextDouble() * 2 - 1) * jitter)
-              .clamp(margin, canvasSize.y - margin),
+            .clamp(gameplayRect.top + margin, gameplayRect.bottom - margin),
         );
 
         var tooClose = false;

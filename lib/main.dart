@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app/router.dart';
 import 'app/theme.dart';
 import 'core/firebase_options_fallback.dart';
+import 'features/auth/data/auth_startup_smoke.dart';
 import 'features/game/data/player_progression_service.dart';
 
 /// Entry point Lumora — initialise Firebase, Flame, AdMob, RevenueCat puis runApp.
@@ -30,6 +31,7 @@ Future<void> main() async {
 
   // Initialisation conditionnelle des SDK tiers
   await _initializeThirdPartySDKs();
+  await AuthStartupSmoke.runIfEnabled();
   await PlayerProgressionService.instance.load();
 
   runApp(

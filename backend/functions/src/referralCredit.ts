@@ -3,7 +3,7 @@ import { getFirestore } from "firebase-admin/firestore";
 
 const db = getFirestore();
 
-interface ReferralData {
+export interface ReferralData {
   referralCode: string;
   deviceId: string;
 }

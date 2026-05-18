@@ -1,4 +1,3 @@
-import { CloudEvent } from "firebase-functions/v2/core";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 
 const db = getFirestore();
@@ -13,7 +12,7 @@ interface EventDefinition {
   frequency?: string;
 }
 
-export const handler = async (_event: CloudEvent<unknown>): Promise<void> => {
+export const handler = async (): Promise<void> => {
   const now = Timestamp.now();
 
   // Load all event definitions

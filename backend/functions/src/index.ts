@@ -5,7 +5,7 @@ import { getMessaging } from "firebase-admin/messaging";
 import { setGlobalOptions } from "firebase-functions/v2";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
-import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
+import { onCall, onRequest } from "firebase-functions/v2/https";
 
 import * as checkQuotaModule from "./checkQuota";
 import * as dailyRewardResetModule from "./dailyRewardReset";
@@ -16,6 +16,7 @@ import * as referralCreditModule from "./referralCredit";
 import * as mergeAnonymousDataModule from "./mergeAnonymousData";
 import * as scheduleNotificationsModule from "./scheduleNotifications";
 import * as deleteUserDataModule from "./deleteUserData";
+import * as emailVerificationModule from "./emailVerification";
 
 // Initialize Firebase Admin SDK once
 const app = initializeApp();
@@ -116,4 +117,31 @@ export const deleteUserData = onCall(
     timeoutSeconds: 120,
   },
   deleteUserDataModule.handler
+);
+
+// 10. sendEmailVerificationCode — HTTPS callable
+export const sendEmailVerificationCode = onCall(
+  {
+    memory: "256MiB",
+    timeoutSeconds: 30,
+  },
+  emailVerificationModule.sendCodeHandler
+);
+
+// 11. verifyEmailVerificationCode — HTTPS callable
+export const verifyEmailVerificationCode = onCall(
+  {
+    memory: "256MiB",
+    timeoutSeconds: 30,
+  },
+  emailVerificationModule.verifyCodeHandler
+);
+
+// 12. finalizeEmailSignup — HTTPS callable
+export const finalizeEmailSignup = onCall(
+  {
+    memory: "512MiB",
+    timeoutSeconds: 60,
+  },
+  emailVerificationModule.finalizeSignupHandler
 );

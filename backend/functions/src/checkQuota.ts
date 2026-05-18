@@ -1,12 +1,12 @@
 import { CallableRequest, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore } from "firebase-admin/firestore";
 
-interface CheckQuotaData {
+export interface CheckQuotaData {
   levelId: number;
   sessionId: string;
 }
 
-interface CheckQuotaResponse {
+export interface CheckQuotaResponse {
   allowed: boolean;
   remaining: number;
   quotaKey: string;
