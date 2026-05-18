@@ -1,7 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../app/theme.dart';
+import '../../../core/audio/sound_manager.dart';
+import '../../../core/utils/haptics.dart';
 import '../../../shared/widgets/lumora_button.dart';
 import '../../../shared/widgets/lumora_card.dart';
 
@@ -22,6 +25,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _notifications = true;
   bool _autoHints = true;
 
+  static const _kMusic = 'setting_music';
+  static const _kSfx = 'setting_sfx';
+  static const _kVibrations = 'setting_vibrations';
+  static const _kNotifications = 'setting_notifications';
+  static const _kAutoHints = 'setting_auto_hints';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    final music = prefs.getBool(_kMusic) ?? true;
+    final sound = prefs.getBool(_kSfx) ?? true;
+    final vibrations = prefs.getBool(_kVibrations) ?? true;
+    final notifications = prefs.getBool(_kNotifications) ?? true;
+    final autoHints = prefs.getBool(_kAutoHints) ?? true;
+    setState(() {
+      _music = music;
+      _sound = sound;
+      _vibrations = vibrations;
+      _notifications = notifications;
+      _autoHints = autoHints;
+    });
+    SoundManager().setMusicEnabled(music);
+    SoundManager().setSfxEnabled(sound);
+    LumoraHaptics.setEnabled(vibrations);
+  }
+
+  Future<void> _saveBool(String key, bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, value);
+  }
+
+  void _onMusicChanged(bool v) {
+    setState(() => _music = v);
+    SoundManager().setMusicEnabled(v);
+    _saveBool(_kMusic, v);
+  }
+
+  void _onSoundChanged(bool v) {
+    setState(() => _sound = v);
+    SoundManager().setSfxEnabled(v);
+    _saveBool(_kSfx, v);
+  }
+
+  void _onVibrationsChanged(bool v) {
+    setState(() => _vibrations = v);
+    LumoraHaptics.setEnabled(v);
+    _saveBool(_kVibrations, v);
+  }
+
+  void _onNotificationsChanged(bool v) {
+    setState(() => _notifications = v);
+    _saveBool(_kNotifications, v);
+  }
+
+  void _onAutoHintsChanged(bool v) {
+    setState(() => _autoHints = v);
+    _saveBool(_kAutoHints, v);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -36,7 +104,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Row(
                   children: [
                     LumoraButton(
-                      onPressed: () => context.pop(),
+                      onPressed: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go('/home');
+                        }
+                      },
                       icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
                       gradientColors: [LumoraColors.midnight, LumoraColors.deepSpace],
                       size: 44,
@@ -64,7 +138,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         label: 'Musique',
                         value: _music,
                         color: LumoraColors.auroraPurple,
-                        onChanged: (v) => setState(() => _music = v),
+                        onChanged: _onMusicChanged,
                       ),
                       const SizedBox(height: 12),
                       _SettingCard(
@@ -72,7 +146,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         label: 'Effets sonores',
                         value: _sound,
                         color: LumoraColors.auroraBlue,
-                        onChanged: (v) => setState(() => _sound = v),
+                        onChanged: _onSoundChanged,
                       ),
                       const SizedBox(height: 12),
                       _SettingCard(
@@ -80,15 +154,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         label: 'Vibrations',
                         value: _vibrations,
                         color: LumoraColors.auroraGreen,
-                        onChanged: (v) => setState(() => _vibrations = v),
+                        onChanged: _onVibrationsChanged,
                       ),
                       const SizedBox(height: 12),
                       _SettingCard(
                         icon: Icons.notifications_active_rounded,
                         label: 'Notifications',
+                        subtitle: 'Rappels et événements',
                         value: _notifications,
                         color: LumoraColors.auroraGold,
-                        onChanged: (v) => setState(() => _notifications = v),
+                        onChanged: _onNotificationsChanged,
                       ),
                       const SizedBox(height: 12),
                       _SettingCard(
@@ -97,7 +172,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         subtitle: 'Désactiver débloque le badge Puriste',
                         value: _autoHints,
                         color: LumoraColors.energyAmber,
-                        onChanged: (v) => setState(() => _autoHints = v),
+                        onChanged: _onAutoHintsChanged,
                       ),
                       const SizedBox(height: 24),
 

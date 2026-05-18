@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flame/components.dart' hide ParticleSystemComponent;
 import 'package:flame/game.dart';
@@ -46,6 +47,9 @@ class LumoraGame extends FlameGame
   // Audio
   final SoundManager _sound = SoundManager();
 
+  // Suivi pour détecter les pertes de vie (comparison frame-à-frame)
+  int _trackedLives = 3;
+
   // Callbacks vers l'UI Flutter
   VoidCallback? onVictory;
   VoidCallback? onDefeat;
@@ -88,9 +92,11 @@ class LumoraGame extends FlameGame
     _loadLevel();
 
     // Initialiser l'audio
-    _sound.init();
+    await _sound.init();
     _sound.setWorld(levelData.worldId);
     _sound.startAmbientLoop();
+    _trackedLives = gameState.lives;
+    unawaited(_sound.playLevelStartSound());
   }
 
   // ─── Chargement / nettoyage des niveaux ───────────────────────────
@@ -243,6 +249,16 @@ class LumoraGame extends FlameGame
       if (gameState.lives <= 0) {
         onDefeat?.call();
       }
+
+      // Urgence sonore : tick-tock bombe sur les 10 dernières secondes
+      if (gameState.maxTime > 0) {
+        final secondsLeft = gameState.timerProgress * gameState.maxTime;
+        _sound.updateTimerUrgency(1.0 - gameState.timerProgress,
+            secondsRemaining: secondsLeft);
+      }
+    } else {
+      // Hors jeu : stopper l'urgence
+      _sound.updateTimerUrgency(0.0);
     }
 
     // Timer de combo
@@ -480,8 +496,11 @@ class LumoraGame extends FlameGame
 
   // ─── Game State Listener ──────────────────────────────────────────
 
-  void _onGameStateChanged() {
-    onStateChanged?.call(gameState);
+  void _onGameStateChanged() {    // Détecter la perte d'une vie pour jouer le son correspondant
+    if (_trackedLives > 0 && gameState.lives < _trackedLives) {
+      unawaited(_sound.playLifeLostSound());
+    }
+    _trackedLives = gameState.lives;    onStateChanged?.call(gameState);
   }
 
   // ─── Méthodes publiques pour l'UI ─────────────────────────────────
@@ -543,6 +562,7 @@ class LumoraGame extends FlameGame
     levelData = gameState.level;
     _cancelCurrentDrag();
     _loadLevel();
+    _trackedLives = gameState.lives;
     gameState.addListener(_onGameStateChanged);
   }
 
@@ -551,6 +571,7 @@ class LumoraGame extends FlameGame
     levelData = gameState.level;
     _cancelCurrentDrag();
     _loadLevel();
+    _trackedLives = gameState.lives;
     gameState.addListener(_onGameStateChanged);
   }
 
@@ -560,6 +581,7 @@ class LumoraGame extends FlameGame
     levelData = nextLevel;
     _cancelCurrentDrag();
     _loadLevel();
+    _trackedLives = gameState.lives;
     gameState.addListener(_onGameStateChanged);
 
     if (_background != null) {

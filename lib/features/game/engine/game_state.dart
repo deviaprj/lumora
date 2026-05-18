@@ -89,6 +89,12 @@ class GameState extends ChangeNotifier {
   int get attemptsPerLife => _attemptsPerLife;
   int get attemptsRemaining => _attemptsRemaining;
   double get timeRemaining => _timeRemaining;
+
+  /// Remet le timer à sa valeur initiale (récompense après vidéo pub).
+  void resetTimer() {
+    _timeRemaining = _level.timeLimit.toDouble();
+    notifyListeners();
+  }
   int get score => _score;
   Set<Connection> get connections => Set.unmodifiable(_connections);
   int get activatedNodes => _activatedNodes;
@@ -181,9 +187,20 @@ class GameState extends ChangeNotifier {
     _timeRemaining -= dt * drainMultiplier;
     if (_timeRemaining <= 0) {
       _timeRemaining = 0;
-      _status = GameStatus.defeat;
-      notifyListeners();
-      return true;
+      _lives--;
+      if (_lives <= 0) {
+        _lives = 0;
+        _attemptsRemaining = 0;
+        _status = GameStatus.defeat;
+        notifyListeners();
+        return true; // défaite
+      } else {
+        // Il reste des vies : réinitialise le timer et les coups
+        _timeRemaining = _level.timeLimit.toDouble();
+        _attemptsRemaining = _attemptsPerLife;
+        notifyListeners();
+        return false;
+      }
     }
     notifyListeners();
     return false;

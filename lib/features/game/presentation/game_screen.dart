@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -7,6 +8,7 @@ import 'package:flame/game.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/utils/analytics.dart';
+import '../../../core/audio/sound_manager.dart';
 import '../data/player_progression_service.dart';
 import '../../monetization/data/reward_inventory.dart';
 import '../../monetization/data/rewarded_ad_service.dart';
@@ -41,6 +43,8 @@ class _GameScreenState extends State<GameScreen> {
   late final PlayerProgressionService _progressionService;
   bool _showVictory = false;
   bool _showDefeat = false;
+  bool _showLifeLost = false;
+  int _previousLives = 3;
   int _rewardedVideosUsed = 0;
   bool _isRewardedAdPending = false;
   ObjectiveRewardSummary _victoryRewardSummary = const ObjectiveRewardSummary();
@@ -65,6 +69,7 @@ class _GameScreenState extends State<GameScreen> {
     _game.onVictory = _onVictory;
     _game.onDefeat = _onDefeat;
     _game.onStateChanged = _onStateChanged;
+    _previousLives = widget.level?.lives ?? LevelCatalog.firstLevel.lives;
   }
 
   void _onInventoryChanged() {
@@ -103,6 +108,7 @@ class _GameScreenState extends State<GameScreen> {
 
   void _onDefeat() {
     if (!mounted) return;
+    unawaited(SoundManager().playDefeatSound());
     setState(() {
       _showDefeat = true;
       _rewardedVideosUsed = 0;
@@ -111,18 +117,60 @@ class _GameScreenState extends State<GameScreen> {
 
   void _onStateChanged(GameState state) {
     if (!mounted) return;
+
+    void applyChange() {
+      if (!mounted) return;
+      // Vie perdue par expiration du timer (partie toujours en cours)
+      if (state.lives < _previousLives && state.status == GameStatus.playing) {
+        _game.pauseGame();
+        setState(() {
+          _showLifeLost = true;
+        });
+      }
+      _previousLives = state.lives;
+      setState(() {});
+    }
+
     final phase = SchedulerBinding.instance.schedulerPhase;
     if (phase == SchedulerPhase.persistentCallbacks ||
         phase == SchedulerPhase.midFrameMicrotasks) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          setState(() {});
-        }
-      });
+      WidgetsBinding.instance.addPostFrameCallback((_) => applyChange());
       return;
     }
+    applyChange();
+  }
 
-    setState(() {});
+  /// Réessayer = relancer le niveau depuis le début (vie déjà consommée par tickTimer).
+  void _onRetryAfterLifeLost() {
+    setState(() => _showLifeLost = false);
+    _game.restartLevel();
+    _game.startLevel();
+  }
+
+  /// Continuer = regarder une pub, puis reprendre là où on s'était arrêté.
+  Future<void> _onContinueWithAdAfterLifeLost() async {
+    if (!mounted) return;
+    setState(() => _showLifeLost = false);
+
+    final rewardEarned = await _rewardedAdService.showRewardedAd(
+      placement: RewardedPlacement.defeatContinue,
+      onRewardEarned: () {},
+    );
+
+    if (!mounted) return;
+
+    if (rewardEarned) {
+      _gameState.resetTimer();
+      _game.resumeGame();
+    } else {
+      // Vidéo indisponible — réafficher l'overlay
+      setState(() => _showLifeLost = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vidéo indisponible. Réessayez ou choisissez une autre option.'),
+        ),
+      );
+    }
   }
 
   void _onPause() {
@@ -135,13 +183,17 @@ class _GameScreenState extends State<GameScreen> {
           _game.resumeGame();
           Navigator.of(context).pop();
         },
+        onShop: () {
+          Navigator.of(context).pop();
+          context.push('/shop');
+        },
         onSettings: () {
           Navigator.of(context).pop();
-          context.go('/settings');
+          context.push('/settings');
         },
         onQuit: () {
           Navigator.of(context).pop();
-          context.go('/world-map');
+          context.go('/home');
         },
       ),
     );
@@ -207,6 +259,7 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _onStartGame() {
+    unawaited(SoundManager().playLevelStartSound());
     _game.startLevel();
   }
 
@@ -292,255 +345,358 @@ class _GameScreenState extends State<GameScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool hasInventory = _rewardInventory.bankedLives > 0 ||
+        _rewardInventory.hintCharges > 0 ||
+        _rewardInventory.doubleScoreCharges > 0 ||
+        _rewardInventory.superFilamentCharges > 0 ||
+        _gameState.isDoubleScoreActive ||
+        _gameState.hasSuperFilament;
+
     return Scaffold(
-      body: Stack(
+      body: Column(
         children: [
-          // Couche jeu Flame
-          GameWidget(game: _game),
-
-          Positioned.fill(
-            child: IgnorePointer(
-              child: _GameplayAura(worldId: _gameState.level.worldId),
-            ),
-          ),
-
-          // Overlay UI organique
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      // Niveau
-                      _LevelBubble(level: _gameState.level.id),
-                      const SizedBox(width: 8),
-                      // Score
-                      _ScoreBadge(score: _gameState.score),
-                      const Spacer(),
-                      // Vies + Coups
-                      _LivesAndAttempts(
-                        lives: _gameState.lives,
-                        maxLives: _gameState.maxLives,
-                        attemptsRemaining: _gameState.attemptsRemaining,
-                        attemptsPerLife: _gameState.attemptsPerLife,
-                      ),
-                      const SizedBox(width: 8),
-                      // Timer
-                      _OrganicTimer(
-                        remaining: _gameState.timeRemaining,
-                        max: _gameState.maxTime,
-                      ),
-                      const SizedBox(width: 8),
-                      // Pause
-                      LumoraButton(
-                        onPressed: _onPause,
-                        icon: const Icon(Icons.pause_rounded, color: Colors.white, size: 20),
-                        gradientColors: [LumoraColors.midnight, LumoraColors.twilight],
-                        size: 40,
-                        elevation: 4,
-                      ),
-                      const SizedBox(width: 8),
-                      // Indice
-                      LumoraButton(
-                        onPressed: _gameState.status == GameStatus.playing ? _onHint : null,
-                        icon: Icon(
-                          Icons.lightbulb_rounded,
-                          color: _gameState.status == GameStatus.playing
-                              ? Colors.white
-                              : LumoraColors.disabledMist,
-                          size: 20,
-                        ),
-                        gradientColors: _gameState.status == GameStatus.playing
-                            ? [LumoraColors.energyAmber, LumoraColors.auroraGold]
-                            : [LumoraColors.midnight, LumoraColors.dawn],
-                        size: 40,
-                        elevation: 4,
-                      ),
-                    ],
-                  ),
-                  if (_rewardInventory.bankedLives > 0 ||
-                      _rewardInventory.hintCharges > 0 ||
-                      _rewardInventory.doubleScoreCharges > 0 ||
-                      _rewardInventory.superFilamentCharges > 0 ||
-                      _gameState.isDoubleScoreActive ||
-                      _gameState.hasSuperFilament) ...[
-                    const SizedBox(height: 10),
-                    _GameplayInventoryBar(
-                      inventory: _rewardInventory,
-                      gameState: _gameState,
-                      onActivateDoubleScore: _onActivateDoubleScore,
-                      onActivateSuperFilament: _onActivateSuperFilament,
-                    ),
-                  ],
-                  if (_gameState.secondaryObjectives.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    _SecondaryObjectivesStrip(gameState: _gameState),
-                  ],
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _StageRuleChip(
-                          icon: Icons.public_rounded,
-                          label: _gameState.level.worldLabel,
-                          accent: _worldAccent(_gameState.level.worldId),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _StageRuleChip(
-                          icon: Icons.auto_awesome_rounded,
-                          label: _gameState.level.specialRuleLabel,
-                          accent: _ruleAccent(_gameState.level.specialRule),
-                          subtitle: _gameState.level.specialRuleDescription,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                ],
-              ),
-            ),
-          ),
-
-          // Bouton démarrer (affiché au début du niveau)
-          if (_gameState.status == GameStatus.idle)
-            Center(
+          // ── Barre supérieure : monde + règle (compacte) ──────────────
+          ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
               child: Container(
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: LumoraColors.auroraBlue.withAlpha(40),
-                      blurRadius: 40,
-                      spreadRadius: 8,
-                    ),
-                  ],
+                  color: LumoraColors.midnight.withAlpha(200),
+                  border: const Border(
+                    bottom: BorderSide(color: Color(0x1AFFFFFF), width: 0.5),
+                  ),
                 ),
-                child: LumoraButton(
-                  onPressed: _onStartGame,
-                  text: 'Commencer',
-                  icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
-                  gradientColors: [LumoraColors.twilight, LumoraColors.auroraBlue],
-                  elevation: 10,
-                ),
-              ),
-            ),
-
-          // Debug victoire (kDebugMode seulement)
-          if (kDebugMode && !_showVictory && !_showDefeat)
-            Positioned(
-              bottom: 16,
-              left: 16,
-              child: LumoraButton(
-                onPressed: _onVictory,
-                text: 'Debug Victoire',
-                gradientColors: [LumoraColors.midnight, LumoraColors.deepSpace],
-                elevation: 2,
-              ),
-            ),
-
-          // Overlay victoire
-          if (_showVictory)
-            VictoryOverlay(
-              stars: _gameState.stars,
-              score: _gameState.score,
-              objectives: _gameState.secondaryObjectives
-                  .map(
-                    (objective) => VictoryObjectiveStatus(
-                      label: objective.label,
-                      description: objective.description,
-                      completed: _gameState.isSecondaryObjectiveCompleted(objective),
-                    ),
-                  )
-                  .toList(growable: false),
-              rewardEntries: _victoryRewardSummary.rewardEntries,
-              onNextLevel: _onNextLevel,
-              onShare: () {
-                // TODO: capture + share overlay
-              },
-              onMenu: () => context.go('/world-map'),
-            ),
-
-          // Overlay défaite
-          if (_showDefeat)
-            Container(
-              color: const Color(0xCC000000),
-              child: Center(
-                child: LumoraCard(
-                  padding: const EdgeInsets.all(32),
-                  borderRadius: LumoraRadii.modal,
-                  shadows: [LumoraShadows.glow(color: LumoraColors.errorRose)],
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('Monde assombri...', style: LumoraTextStyles.displayMedium()),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Score : ${_gameState.score}',
-                        style: LumoraTextStyles.bodyLarge(),
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Vies restantes : ${_gameState.lives} • Coups : ${_gameState.attemptsRemaining}/${_gameState.attemptsPerLife}',
-                        style: LumoraTextStyles.bodyMedium(),
-                      ),
-                      const SizedBox(height: 16),
-                      if (_gameState.lives > 0)
-                        LumoraButton(
-                          onPressed: _onRestart,
-                          text: 'Réessayer',
-                          icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-                          gradientColors: [LumoraColors.auroraGreen, LumoraColors.auroraBlue],
-                          elevation: 8,
-                        ),
-                      if (_gameState.lives <= 0) ...[
-                        if (_rewardInventory.bankedLives > 0) ...[
-                          LumoraButton(
-                            onPressed: _onUseBankedLife,
-                            text: 'Utiliser 1 vie en réserve',
-                            icon: const Icon(Icons.favorite_rounded, color: Colors.white),
-                            gradientColors: [LumoraColors.lifeCoral, LumoraColors.lifeRose],
-                            elevation: 8,
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _StageRuleChip(
+                            icon: Icons.public_rounded,
+                            label: _gameState.level.worldLabel,
+                            accent: _worldAccent(_gameState.level.worldId),
                           ),
-                          const SizedBox(height: 10),
-                        ],
-                        LumoraButton(
-                          onPressed: _rewardedVideosUsed < 2 && !_isRewardedAdPending
-                            ? _onWatchRewardedVideo
-                            : null,
-                          text: _isRewardedAdPending
-                            ? 'Chargement video...'
-                            : _rewardedVideosUsed == 0
-                              ? 'Video récompensée (+1 vie)'
-                              : (_rewardedVideosUsed == 1
-                                  ? 'Video récompensée (+2 vies)'
-                                  : 'Videos déjà utilisées'),
-                          icon: const Icon(Icons.ondemand_video_rounded, color: Colors.white),
-                          gradientColors: [LumoraColors.auroraOrange, LumoraColors.energyAmber],
-                          elevation: 8,
                         ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Règle: 1ere video = +1 vie, 2eme video = +2 vies (max 3).',
-                          style: LumoraTextStyles.bodyMedium(),
-                          textAlign: TextAlign.center,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _StageRuleChip(
+                            icon: Icons.auto_awesome_rounded,
+                            label: _gameState.level.specialRuleLabel,
+                            accent: _ruleAccent(_gameState.level.specialRule),
+                            subtitle: _gameState.level.specialRuleDescription,
+                          ),
                         ),
                       ],
-                      const SizedBox(height: 14),
-                      LumoraButton(
-                        onPressed: () => context.go('/world-map?completed=${_gameState.level.id}'),
-                        text: 'Carte des mondes',
-                        icon: const Icon(Icons.map_rounded, color: Colors.white70),
-                        gradientColors: [LumoraColors.midnight, LumoraColors.deepSpace],
-                        elevation: 2,
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
+          ),
+
+          // ── Zone de jeu (s'étire entre les deux barres) ───────────────
+          Expanded(
+            child: Stack(
+              children: [
+                // Couche jeu Flame
+                GameWidget(game: _game),
+
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: _GameplayAura(worldId: _gameState.level.worldId),
+                  ),
+                ),
+
+                // Bouton démarrer
+                if (_gameState.status == GameStatus.idle)
+                  Center(
+                    child: IntrinsicHeight(
+                      child: IntrinsicWidth(
+                        child: LumoraButton(
+                          onPressed: _onStartGame,
+                          text: 'Commencer',
+                          icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
+                          gradientColors: [LumoraColors.twilight, LumoraColors.auroraBlue],
+                          elevation: 10,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // Overlay victoire
+                if (_showVictory)
+                  VictoryOverlay(
+                    stars: _gameState.stars,
+                    score: _gameState.score,
+                    objectives: _gameState.secondaryObjectives
+                        .map(
+                          (objective) => VictoryObjectiveStatus(
+                            label: objective.label,
+                            description: objective.description,
+                            completed: _gameState.isSecondaryObjectiveCompleted(objective),
+                          ),
+                        )
+                        .toList(growable: false),
+                    rewardEntries: _victoryRewardSummary.rewardEntries,
+                    onNextLevel: _onNextLevel,
+                    onShare: () {
+                      // TODO: capture + share overlay
+                    },
+                    onMenu: () => context.go('/world-map'),
+                  ),
+
+                // Overlay défaite
+                if (_showDefeat)
+                  Container(
+                    color: const Color(0xCC000000),
+                    child: Center(
+                      child: LumoraCard(
+                        padding: const EdgeInsets.all(32),
+                        borderRadius: LumoraRadii.modal,
+                        shadows: [LumoraShadows.glow(color: LumoraColors.errorRose)],
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('Monde assombri...', style: LumoraTextStyles.displayMedium()),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Score : ${_gameState.score}',
+                              style: LumoraTextStyles.bodyLarge(),
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              'Vies restantes : ${_gameState.lives} • Coups : ${_gameState.attemptsRemaining}/${_gameState.attemptsPerLife}',
+                              style: LumoraTextStyles.bodyMedium(),
+                            ),
+                            const SizedBox(height: 16),
+                            if (_gameState.lives > 0)
+                              LumoraButton(
+                                onPressed: _onRestart,
+                                text: 'Réessayer',
+                                icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                                gradientColors: [LumoraColors.auroraGreen, LumoraColors.auroraBlue],
+                                elevation: 8,
+                              ),
+                            if (_gameState.lives <= 0) ...[
+                              if (_rewardInventory.bankedLives > 0) ...[
+                                LumoraButton(
+                                  onPressed: _onUseBankedLife,
+                                  text: 'Utiliser 1 vie en réserve',
+                                  icon: const Icon(Icons.favorite_rounded, color: Colors.white),
+                                  gradientColors: [LumoraColors.lifeCoral, LumoraColors.lifeRose],
+                                  elevation: 8,
+                                ),
+                                const SizedBox(height: 10),
+                              ],
+                              LumoraButton(
+                                onPressed: _rewardedVideosUsed < 2 && !_isRewardedAdPending
+                                  ? _onWatchRewardedVideo
+                                  : null,
+                                text: _isRewardedAdPending
+                                  ? 'Chargement video...'
+                                  : _rewardedVideosUsed == 0
+                                    ? 'Video récompensée (+1 vie)'
+                                    : (_rewardedVideosUsed == 1
+                                        ? 'Video récompensée (+2 vies)'
+                                        : 'Videos déjà utilisées'),
+                                icon: const Icon(Icons.ondemand_video_rounded, color: Colors.white),
+                                gradientColors: [LumoraColors.auroraOrange, LumoraColors.energyAmber],
+                                elevation: 8,
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                'Règle: 1ere video = +1 vie, 2eme video = +2 vies (max 3).',
+                                style: LumoraTextStyles.bodyMedium(),
+                                textAlign: TextAlign.center,
+                              ),
+                              if (_rewardedVideosUsed >= 2 &&
+                                  _rewardInventory.bankedLives <= 0) ...[
+                                const SizedBox(height: 16),
+                                _LifeRechargeCountdown(inventory: _rewardInventory),
+                              ],
+                            ],
+                            const SizedBox(height: 14),
+                            LumoraButton(
+                              onPressed: () => context.go('/world-map?completed=${_gameState.level.id}'),
+                              text: 'Carte des mondes',
+                              icon: const Icon(Icons.map_rounded, color: Colors.white70),
+                              gradientColors: [LumoraColors.midnight, LumoraColors.deepSpace],
+                              elevation: 2,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // Overlay vie perdue (timer expiré, vies restantes > 0)
+                if (_showLifeLost)
+                  Container(
+                    color: const Color(0xCC000000),
+                    child: Center(
+                      child: LumoraCard(
+                        padding: const EdgeInsets.all(32),
+                        borderRadius: LumoraRadii.modal,
+                        shadows: [LumoraShadows.glow(color: LumoraColors.lifeCoral)],
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.favorite_border_rounded,
+                              color: LumoraColors.lifeCoral,
+                              size: 48,
+                            ),
+                            const SizedBox(height: 12),
+                            Text('Vie perdue !', style: LumoraTextStyles.displayMedium()),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Le temps est écoulé',
+                              style: LumoraTextStyles.bodyMedium(),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                for (int i = 0; i < _gameState.maxLives; i++) ...[
+                                  if (i > 0) const SizedBox(width: 6),
+                                  Icon(
+                                    i < _gameState.lives
+                                        ? Icons.favorite_rounded
+                                        : Icons.favorite_border_rounded,
+                                    color: i < _gameState.lives
+                                        ? LumoraColors.lifeCoral
+                                        : LumoraColors.disabledMist,
+                                    size: 30,
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+                            // Réessayer = relancer depuis le début
+                            LumoraButton(
+                              onPressed: _onRetryAfterLifeLost,
+                              text: 'Réessayer',
+                              icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                              gradientColors: [LumoraColors.auroraGreen, LumoraColors.auroraBlue],
+                              elevation: 8,
+                            ),
+                            const SizedBox(height: 10),
+                            // Continuer = pub obligatoire, reprend là où on s'est arrêté
+                            LumoraButton(
+                              onPressed: _onContinueWithAdAfterLifeLost,
+                              text: 'Continuer (vidéo)',
+                              icon: const Icon(Icons.ondemand_video_rounded, color: Colors.white),
+                              gradientColors: [LumoraColors.auroraOrange, LumoraColors.energyAmber],
+                              elevation: 6,
+                            ),
+                            const SizedBox(height: 10),
+                            // Menu principal
+                            LumoraButton(
+                              onPressed: () {
+                                setState(() => _showLifeLost = false);
+                                context.go('/home');
+                              },
+                              text: 'Menu principal',
+                              icon: const Icon(Icons.home_rounded, color: Colors.white70),
+                              gradientColors: [LumoraColors.midnight, LumoraColors.deepSpace],
+                              elevation: 2,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // ── Barre inférieure : vies, coups, timer, actions ─────────────
+          ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: LumoraColors.midnight.withAlpha(180),
+                  border: const Border(
+                    top: BorderSide(color: Color(0x1EFFFFFF), width: 0.5),
+                  ),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Inventaire (conditionnel)
+                        if (hasInventory) ...[
+                          _GameplayInventoryBar(
+                            inventory: _rewardInventory,
+                            gameState: _gameState,
+                            onActivateDoubleScore: _onActivateDoubleScore,
+                            onActivateSuperFilament: _onActivateSuperFilament,
+                          ),
+                          const SizedBox(height: 6),
+                        ],
+                        // Objectifs secondaires (conditionnel)
+                        if (_gameState.secondaryObjectives.isNotEmpty) ...[
+                          _SecondaryObjectivesStrip(gameState: _gameState),
+                          const SizedBox(height: 6),
+                        ],
+                        // Ligne principale : niveau, score, vies, timer, actions
+                        Row(
+                          children: [
+                            _LevelBubble(level: _gameState.level.id),
+                            const SizedBox(width: 6),
+                            _ScoreBadge(score: _gameState.score),
+                            const Spacer(),
+                            _LivesAndAttempts(
+                              lives: _gameState.lives,
+                              maxLives: _gameState.maxLives,
+                              attemptsRemaining: _gameState.attemptsRemaining,
+                              attemptsPerLife: _gameState.attemptsPerLife,
+                            ),
+                            const SizedBox(width: 8),
+                            _OrganicTimer(
+                              remaining: _gameState.timeRemaining,
+                              max: _gameState.maxTime,
+                            ),
+                            const SizedBox(width: 8),
+                            LumoraButton(
+                              onPressed: _onPause,
+                              icon: const Icon(Icons.pause_rounded, color: Colors.white, size: 18),
+                              gradientColors: [LumoraColors.midnight, LumoraColors.twilight],
+                              size: 36,
+                              elevation: 3,
+                            ),
+                            const SizedBox(width: 6),
+                            LumoraButton(
+                              onPressed: _gameState.status == GameStatus.playing ? _onHint : null,
+                              icon: Icon(
+                                Icons.lightbulb_rounded,
+                                color: _gameState.status == GameStatus.playing
+                                    ? Colors.white
+                                    : LumoraColors.disabledMist,
+                                size: 18,
+                              ),
+                              gradientColors: _gameState.status == GameStatus.playing
+                                  ? [LumoraColors.energyAmber, LumoraColors.auroraGold]
+                                  : [LumoraColors.midnight, LumoraColors.dawn],
+                              size: 36,
+                              elevation: 3,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1033,11 +1189,13 @@ class _OrganicTimer extends StatelessWidget {
 /// Overlay de pause — modale glassmorphism avec cercles flottants.
 class _PauseOverlay extends StatelessWidget {
   final VoidCallback onResume;
+  final VoidCallback onShop;
   final VoidCallback onSettings;
   final VoidCallback onQuit;
 
   const _PauseOverlay({
     required this.onResume,
+    required this.onShop,
     required this.onSettings,
     required this.onQuit,
   });
@@ -1053,29 +1211,124 @@ class _PauseOverlay extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Pause', style: LumoraTextStyles.titleLarge()),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.menu_rounded, color: Color(0xAAFFFFFF), size: 22),
+                const SizedBox(width: 8),
+                Text('Menu', style: LumoraTextStyles.titleLarge()),
+              ],
+            ),
             const SizedBox(height: 20),
             LumoraButton(
               onPressed: onResume,
               text: 'Reprendre',
+              icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
               gradientColors: [LumoraColors.auroraGreen, LumoraColors.auroraBlue],
+              elevation: 8,
+            ),
+            const SizedBox(height: 12),
+            LumoraButton(
+              onPressed: onShop,
+              text: 'Boutique',
+              icon: const Icon(Icons.store_rounded, color: Colors.white),
+              gradientColors: [LumoraColors.auroraPurple, LumoraColors.auroraPink],
+              elevation: 5,
             ),
             const SizedBox(height: 12),
             LumoraButton(
               onPressed: onSettings,
               text: 'Paramètres',
-              gradientColors: [LumoraColors.auroraPurple, LumoraColors.auroraPink],
+              icon: const Icon(Icons.settings_rounded, color: Colors.white),
+              gradientColors: [LumoraColors.auroraBlue, LumoraColors.twilight],
+              elevation: 5,
             ),
             const SizedBox(height: 12),
             LumoraButton(
               onPressed: onQuit,
-              text: 'Quitter',
+              text: 'Menu principal',
+              icon: const Icon(Icons.home_rounded, color: Colors.white70),
               gradientColors: [LumoraColors.midnight, LumoraColors.deepSpace],
               elevation: 2,
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Compte à rebours de recharge de vies (2 h).
+/// Se met à jour automatiquement chaque seconde.
+/// Appelle [RewardInventory.startLifeRecharge] si la recharge n'est pas
+/// encore déclenchée, et [checkAndApplyLifeRecharge] quand le délai expire.
+class _LifeRechargeCountdown extends StatefulWidget {
+  final RewardInventory inventory;
+  const _LifeRechargeCountdown({required this.inventory});
+
+  @override
+  State<_LifeRechargeCountdown> createState() => _LifeRechargeCountdownState();
+}
+
+class _LifeRechargeCountdownState extends State<_LifeRechargeCountdown> {
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.inventory.isLivesRecharging) {
+      widget.inventory.startLifeRecharge();
+    }
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) async {
+      final recharged = await widget.inventory.checkAndApplyLifeRecharge();
+      if (mounted) setState(() {});
+      if (recharged) _ticker?.cancel();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  String _format(Duration d) {
+    final h = d.inHours;
+    final m = d.inMinutes % 60;
+    final s = d.inSeconds % 60;
+    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = widget.inventory.lifeRechargeTimeRemaining;
+    if (remaining == null || remaining == Duration.zero) {
+      return Text(
+        'Vies rechargées ! (+3)',
+        style: LumoraTextStyles.bodyMedium().copyWith(color: LumoraColors.auroraGreen),
+        textAlign: TextAlign.center,
+      );
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.timer_outlined, color: Colors.white54, size: 20),
+        const SizedBox(height: 4),
+        Text(
+          'Vies rechargées dans',
+          style: LumoraTextStyles.label().copyWith(color: Colors.white54),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _format(remaining),
+          style: LumoraTextStyles.bodyLarge().copyWith(
+            color: LumoraColors.energyAmber,
+            fontWeight: FontWeight.bold,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 }

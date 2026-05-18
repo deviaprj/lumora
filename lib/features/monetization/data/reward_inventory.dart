@@ -91,6 +91,7 @@ class RewardInventory extends ChangeNotifier {
   static const String _activeThemeTrialsKey = 'reward_inventory_active_theme_trials';
   static const String _lastRewardAtKey = 'reward_inventory_last_reward_at';
   static const String _rewardedObjectivesKey = 'reward_inventory_rewarded_objectives';
+  static const String _lifeRechargeDeadlineKey = 'reward_inventory_life_recharge_deadline_ms';
 
   int bankedLives = 0;
   int hintCharges = 0;
@@ -99,8 +100,47 @@ class RewardInventory extends ChangeNotifier {
   final Map<String, DateTime> activeThemeTrials = <String, DateTime>{};
   final Map<RewardedPlacement, DateTime> _lastRewardAt = <RewardedPlacement, DateTime>{};
   final Set<String> _rewardedObjectiveKeys = <String>{};
+  DateTime? _lifeRechargeDeadline;
   SharedPreferences? _prefs;
   Future<void>? _loadFuture;
+
+  /// Date/heure à laquelle les vies seront rechargées (null = pas en cours).
+  DateTime? get lifeRechargeDeadline => _lifeRechargeDeadline;
+
+  /// Durée restante avant la recharge (null = pas en cours, Duration.zero = terminée).
+  Duration? get lifeRechargeTimeRemaining {
+    final deadline = _lifeRechargeDeadline;
+    if (deadline == null) return null;
+    final remaining = deadline.difference(DateTime.now());
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+
+  /// True si la recharge est en cours et pas encore terminée.
+  bool get isLivesRecharging =>
+      _lifeRechargeDeadline != null &&
+      _lifeRechargeDeadline!.isAfter(DateTime.now());
+
+  /// Lance le compte à rebours de 2 h pour recharger les vies.
+  /// Idempotent : n'écrase pas un compte à rebours déjà en cours.
+  void startLifeRecharge() {
+    if (isLivesRecharging) return;
+    _lifeRechargeDeadline = DateTime.now().add(const Duration(hours: 2));
+    _scheduleSave();
+    notifyListeners();
+  }
+
+  /// Applique la recharge si le délai est écoulé.
+  /// Retourne true si les vies ont été rechargées.
+  Future<bool> checkAndApplyLifeRecharge() async {
+    final deadline = _lifeRechargeDeadline;
+    if (deadline == null) return false;
+    if (DateTime.now().isBefore(deadline)) return false;
+    bankedLives += 3;
+    _lifeRechargeDeadline = null;
+    _scheduleSave();
+    notifyListeners();
+    return true;
+  }
 
   bool get isLoaded => _prefs != null;
 
@@ -137,7 +177,14 @@ class RewardInventory extends ChangeNotifier {
       ..clear()
       ..addAll(_decodeStringSet(_prefs!.getString(_rewardedObjectivesKey)));
 
+    final deadlineMs = _prefs!.getInt(_lifeRechargeDeadlineKey);
+    _lifeRechargeDeadline = deadlineMs != null
+        ? DateTime.fromMillisecondsSinceEpoch(deadlineMs)
+        : null;
+
     _pruneExpiredRewards();
+    // Auto-appliquer si le délai est déjà écoulé
+    await checkAndApplyLifeRecharge();
     _loadFuture = null;
     notifyListeners();
   }
@@ -378,6 +425,12 @@ class RewardInventory extends ChangeNotifier {
       _rewardedObjectivesKey,
       jsonEncode(_rewardedObjectiveKeys.toList(growable: false)),
     );
+    if (_lifeRechargeDeadline != null) {
+      await prefs.setInt(
+          _lifeRechargeDeadlineKey, _lifeRechargeDeadline!.millisecondsSinceEpoch);
+    } else {
+      await prefs.remove(_lifeRechargeDeadlineKey);
+    }
   }
 
   Map<String, DateTime> _decodeStringDateMap(String? rawValue) {
@@ -428,6 +481,7 @@ class RewardInventory extends ChangeNotifier {
     hintCharges = 0;
     doubleScoreCharges = 0;
     superFilamentCharges = 0;
+    _lifeRechargeDeadline = null;
     activeThemeTrials.clear();
     _lastRewardAt.clear();
     _rewardedObjectiveKeys.clear();

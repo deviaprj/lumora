@@ -1,24 +1,18 @@
 import 'package:flame/extensions.dart' show Vector2;
-
 /// Position normalisée d'un nœud (0.0–1.0) relative à la taille du canvas.
 class NodePosition {
   final double x;
   final double y;
-
   const NodePosition(this.x, this.y);
-
   /// Convertit en position absolue pour un canvas de taille [size].
   Vector2 toAbsolute(Vector2 size) => Vector2(x * size.x, y * size.y);
 }
-
 /// Connexion requise entre deux nœuds (index dans la liste de nœuds).
 class RequiredConnection {
   final int from;
   final int to;
-
   const RequiredConnection(this.from, this.to);
 }
-
 enum WorldTheme {
   auroraSanctum,
   prismTide,
@@ -26,26 +20,21 @@ enum WorldTheme {
   abyssBloom,
   cometGarden,
 }
-
 enum LevelSpecialRule {
   standard,
   overload,
   resonance,
   blackout,
 }
-
 enum SecondaryObjectiveType {
   noDuplicate,
   comboChain,
   risingFlow,
 }
-
 class SecondaryObjective {
   final SecondaryObjectiveType type;
   final int threshold;
-
   const SecondaryObjective(this.type, {this.threshold = 0});
-
   String get label {
     switch (type) {
       case SecondaryObjectiveType.noDuplicate:
@@ -56,7 +45,6 @@ class SecondaryObjective {
         return 'Flux ascendant';
     }
   }
-
   String get description {
     switch (type) {
       case SecondaryObjectiveType.noDuplicate:
@@ -68,7 +56,6 @@ class SecondaryObjective {
     }
   }
 }
-
 extension WorldThemeLabel on WorldTheme {
   String get label {
     switch (this) {
@@ -85,7 +72,6 @@ extension WorldThemeLabel on WorldTheme {
     }
   }
 }
-
 extension LevelSpecialRuleLabel on LevelSpecialRule {
   String get label {
     switch (this) {
@@ -99,7 +85,6 @@ extension LevelSpecialRuleLabel on LevelSpecialRule {
         return 'Blackout';
     }
   }
-
   String get description {
     switch (this) {
       case LevelSpecialRule.standard:
@@ -113,7 +98,6 @@ extension LevelSpecialRuleLabel on LevelSpecialRule {
     }
   }
 }
-
 /// Définition d'un niveau Lumora.
 class LevelData {
   final int id;
@@ -127,7 +111,6 @@ class LevelData {
   final WorldTheme worldTheme;
   final LevelSpecialRule specialRule;
   final List<SecondaryObjective> secondaryObjectives;
-
   const LevelData({
     required this.id,
     required this.name,
@@ -141,13 +124,11 @@ class LevelData {
     this.specialRule = LevelSpecialRule.standard,
     this.secondaryObjectives = const <SecondaryObjective>[],
   });
-
   int get totalConnections => requiredConnections.length;
   String get worldLabel => worldTheme.label;
   String get specialRuleLabel => specialRule.label;
   String get specialRuleDescription => specialRule.description;
 }
-
 /// Niveaux prédéfinis pour le World 1.
 class World1Levels {
   static const List<LevelData> levels = [
@@ -165,7 +146,6 @@ class World1Levels {
       ],
       timeLimit: 120.0,
       lives: 3,
-      attemptsPerLife: 5,
       worldTheme: WorldTheme.auroraSanctum,
     ),
     LevelData(
@@ -184,7 +164,6 @@ class World1Levels {
       ],
       timeLimit: 100.0,
       lives: 3,
-      attemptsPerLife: 5,
       worldTheme: WorldTheme.auroraSanctum,
     ),
     LevelData(
@@ -206,7 +185,6 @@ class World1Levels {
       ],
       timeLimit: 90.0,
       lives: 3,
-      attemptsPerLife: 5,
       worldTheme: WorldTheme.auroraSanctum,
     ),
     LevelData(
@@ -286,8 +264,8 @@ class World1Levels {
       ],
       timeLimit: 72.0,
       lives: 3,
-      attemptsPerLife: 10,
       worldId: 2,
+      attemptsPerLife: 10,
       worldTheme: WorldTheme.prismTide,
     ),
     LevelData(
@@ -315,8 +293,8 @@ class World1Levels {
       ],
       timeLimit: 70.0,
       lives: 3,
-      attemptsPerLife: 10,
       worldId: 2,
+      attemptsPerLife: 10,
       worldTheme: WorldTheme.prismTide,
     ),
     LevelData(
@@ -346,8 +324,8 @@ class World1Levels {
       ],
       timeLimit: 68.0,
       lives: 3,
-      attemptsPerLife: 10,
       worldId: 2,
+      attemptsPerLife: 10,
       worldTheme: WorldTheme.prismTide,
     ),
     LevelData(
@@ -380,8 +358,8 @@ class World1Levels {
       ],
       timeLimit: 66.0,
       lives: 3,
-      attemptsPerLife: 10,
       worldId: 2,
+      attemptsPerLife: 10,
       worldTheme: WorldTheme.prismTide,
     ),
     LevelData(
@@ -416,18 +394,15 @@ class World1Levels {
       ],
       timeLimit: 64.0,
       lives: 3,
-      attemptsPerLife: 10,
       worldId: 2,
+      attemptsPerLife: 10,
       worldTheme: WorldTheme.prismTide,
     ),
   ];
 }
-
 class LevelCatalog {
   static List<LevelData> get handcraftedLevels => World1Levels.levels;
-
   static LevelData get firstLevel => handcraftedLevels.first;
-
   static LevelData byId(int id) {
     for (final level in handcraftedLevels) {
       if (level.id == id) {
@@ -436,10 +411,8 @@ class LevelCatalog {
     }
     return ProceduralLevelGenerator.generate(id);
   }
-
   static LevelData nextLevel(LevelData current) => byId(current.id + 1);
 }
-
 class ProceduralLevelGenerator {
   static const List<WorldTheme> _themeCycle = [
     WorldTheme.auroraSanctum,
@@ -448,7 +421,6 @@ class ProceduralLevelGenerator {
     WorldTheme.abyssBloom,
     WorldTheme.cometGarden,
   ];
-
   static LevelData generate(int id) {
     final progressionIndex = (id - LevelCatalog.handcraftedLevels.length - 1).clamp(0, 9999);
     final difficultyTier = progressionIndex ~/ 6;
@@ -462,10 +434,8 @@ class ProceduralLevelGenerator {
     final attemptsPerLife = (6 + difficultyTier - (specialRule == LevelSpecialRule.blackout ? 1 : 0))
         .clamp(5, 14);
     final timeLimit = _resolveTimeLimit(difficultyTier, phase, specialRule);
-
     final nodes = _generateNodes(nodeCount, layerCount);
     final requiredConnections = _generateConnections(nodeCount, layerCount, difficultyTier);
-
     return LevelData(
       id: id,
       name: '${worldTheme.label} $id',
@@ -480,7 +450,6 @@ class ProceduralLevelGenerator {
       secondaryObjectives: _generateSecondaryObjectives(difficultyTier, phase, specialRule),
     );
   }
-
   static List<SecondaryObjective> _generateSecondaryObjectives(
     int tier,
     int phase,
@@ -493,19 +462,15 @@ class ProceduralLevelGenerator {
         threshold: (3 + (tier ~/ 2)).clamp(3, 5),
       ),
     ];
-
     if (specialRule == LevelSpecialRule.resonance || tier >= 2 || phase >= 4) {
       objectives.add(const SecondaryObjective(SecondaryObjectiveType.risingFlow));
     }
-
     return objectives;
   }
-
   static LevelSpecialRule _resolveSpecialRule(int tier, int phase) {
     if (tier == 0 && phase < 2) {
       return LevelSpecialRule.standard;
     }
-
     final cycle = [
       LevelSpecialRule.standard,
       LevelSpecialRule.resonance,
@@ -516,7 +481,6 @@ class ProceduralLevelGenerator {
     ];
     return cycle[(tier + phase) % cycle.length];
   }
-
   static double _resolveTimeLimit(int tier, int phase, LevelSpecialRule specialRule) {
     var base = (76.0 - tier * 2.4 - phase * 1.2).clamp(34.0, 76.0);
     if (specialRule == LevelSpecialRule.blackout) {
@@ -527,22 +491,18 @@ class ProceduralLevelGenerator {
     }
     return base.clamp(30.0, 76.0);
   }
-
   static List<NodePosition> _generateNodes(int nodeCount, int layerCount) {
     final nodes = <NodePosition>[];
     final basePerLayer = nodeCount ~/ layerCount;
     var remainder = nodeCount % layerCount;
-
     for (var layer = 0; layer < layerCount; layer++) {
       final nodesInLayer = basePerLayer + (remainder > 0 ? 1 : 0);
       if (remainder > 0) {
         remainder--;
       }
-
       final y = layerCount == 1
           ? 0.5
           : 0.14 + (layer / (layerCount - 1)) * 0.72;
-
       for (var index = 0; index < nodesInLayer; index++) {
         final x = nodesInLayer == 1
             ? 0.5
@@ -551,10 +511,8 @@ class ProceduralLevelGenerator {
         nodes.add(NodePosition(x + horizontalWave, y));
       }
     }
-
     return nodes.take(nodeCount).toList(growable: false);
   }
-
   static List<RequiredConnection> _generateConnections(int nodeCount, int layerCount, int difficultyTier) {
     final connections = <RequiredConnection>[];
     final layerOffsets = <int>[];
@@ -562,7 +520,6 @@ class ProceduralLevelGenerator {
     final basePerLayer = nodeCount ~/ layerCount;
     var remainder = nodeCount % layerCount;
     var offset = 0;
-
     for (var layer = 0; layer < layerCount; layer++) {
       final size = basePerLayer + (remainder > 0 ? 1 : 0);
       if (remainder > 0) {
@@ -572,18 +529,15 @@ class ProceduralLevelGenerator {
       layerSizes.add(size);
       offset += size;
     }
-
     for (var layer = 0; layer < layerCount - 1; layer++) {
       final currentOffset = layerOffsets[layer];
       final nextOffset = layerOffsets[layer + 1];
       final currentSize = layerSizes[layer];
       final nextSize = layerSizes[layer + 1];
-
       for (var index = 0; index < currentSize; index++) {
         final from = currentOffset + index;
         final primaryTarget = nextOffset + ((index * nextSize) ~/ currentSize);
         connections.add(RequiredConnection(from, primaryTarget));
-
         final shouldCreateBridge = currentSize > 1 && nextSize > 1 && (index + layer).isEven;
         if (shouldCreateBridge) {
           final secondaryTarget = nextOffset + ((primaryTarget - nextOffset + 1).clamp(0, nextSize - 1));
@@ -593,20 +547,17 @@ class ProceduralLevelGenerator {
         }
       }
     }
-
     for (var layer = 1; layer < layerCount - 1; layer++) {
       final layerOffset = layerOffsets[layer];
       final layerSize = layerSizes[layer];
       if (layerSize >= 2) {
         connections.add(RequiredConnection(layerOffset, layerOffset + layerSize - 1));
       }
-
       if (difficultyTier >= 2 && layerSize >= 3) {
         final middle = layerOffset + (layerSize ~/ 2);
         connections.add(RequiredConnection(layerOffset, middle));
       }
     }
-
     final uniqueConnections = <RequiredConnection>[];
     for (final connection in connections) {
       final alreadyExists = uniqueConnections.any(
@@ -618,7 +569,6 @@ class ProceduralLevelGenerator {
         uniqueConnections.add(connection);
       }
     }
-
     return uniqueConnections;
   }
 }
