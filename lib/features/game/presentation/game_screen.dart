@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flame/game.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
@@ -110,6 +111,17 @@ class _GameScreenState extends State<GameScreen> {
 
   void _onStateChanged(GameState state) {
     if (!mounted) return;
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.persistentCallbacks ||
+        phase == SchedulerPhase.midFrameMicrotasks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {});
+        }
+      });
+      return;
+    }
+
     setState(() {});
   }
 
