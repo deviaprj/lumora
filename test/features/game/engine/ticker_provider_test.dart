@@ -5,7 +5,6 @@ import 'package:lumora_mobile/shared/widgets/lumora_button.dart';
 import 'package:lumora_mobile/shared/widgets/lumora_card.dart';
 import 'package:lumora_mobile/features/game/presentation/victory_overlay.dart';
 import 'package:lumora_mobile/features/game/presentation/world_map_screen.dart';
-import 'package:lumora_mobile/features/game/domain/level_data.dart';
 
 /// Tests de régression pour vérifier que les widgets utilisent
 /// le bon TickerProvider (TickerProviderStateMixin pour multi-controllers,
@@ -101,6 +100,8 @@ void main() {
             body: VictoryOverlay(
               stars: 3,
               score: 500,
+              objectives: const [],
+              rewardEntries: const [],
               onNextLevel: () {},
               onShare: () {},
               onMenu: () {},
@@ -108,7 +109,9 @@ void main() {
           ),
         ));
         await tester.pump();
-        await tester.pump(const Duration(milliseconds: 500));
+        // La séquence des étoiles s'étale sur ~1100 ms (400 + 2×350) ;
+        // pomper assez longtemps pour épuiser les timers différés.
+        await tester.pump(const Duration(milliseconds: 1500));
         expect(find.text('Monde illuminé !'), findsOneWidget);
       });
 
@@ -162,6 +165,8 @@ void main() {
             body: VictoryOverlay(
               stars: 2,
               score: 300,
+              objectives: const [],
+              rewardEntries: const [],
               onNextLevel: () {},
               onShare: () {},
               onMenu: () {},
@@ -185,6 +190,8 @@ void main() {
             body: VictoryOverlay(
               stars: 3,
               score: 500,
+              objectives: const [],
+              rewardEntries: const [],
               onNextLevel: () {},
               onShare: () {},
               onMenu: () {},

@@ -89,8 +89,15 @@ void main() {
       final inkWell = find.byType(InkWell);
       expect(inkWell, findsOneWidget);
 
-      // Le ScaleTransition devrait être présent
-      expect(find.byType(ScaleTransition), findsOneWidget);
+      // Le ScaleTransition de l'animation de pression doit être présent
+      // (restreint au bouton : la transition de route en ajoute un autre).
+      expect(
+        find.descendant(
+          of: find.byType(LumoraButton),
+          matching: find.byType(ScaleTransition),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('floating animation offset is present', (tester) async {

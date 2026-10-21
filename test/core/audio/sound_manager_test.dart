@@ -1,7 +1,35 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lumora_mobile/core/audio/sound_manager.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  // audioplayers n'a pas d'implémentation native dans les tests :
+  // on neutralise ses canaux de plateforme pour instancier SoundManager.
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  messenger.setMockMethodCallHandler(
+    const MethodChannel('xyz.luan/audioplayers.global'),
+    (call) async => null,
+  );
+  messenger.setMockMethodCallHandler(
+    const MethodChannel('xyz.luan/audioplayers.global/events'),
+    (call) async => null,
+  );
+  messenger.setMockMethodCallHandler(
+    const MethodChannel('xyz.luan/audioplayers'),
+    (call) async {
+      switch (call.method) {
+        case 'getCurrentPosition':
+        case 'getDuration':
+          return 0;
+        default:
+          return null;
+      }
+    },
+  );
+
   group('SoundManager', () {
     late SoundManager soundManager;
 

@@ -42,8 +42,9 @@ class AuthService {
   final FirebaseFunctions? _functionsOverride;
 
   FirebaseAuth get _auth {
-    if (_authOverride != null) {
-      return _authOverride!;
+    final override = _authOverride;
+    if (override != null) {
+      return override;
     }
     if (Firebase.apps.isEmpty) {
       throw FirebaseAuthException(
@@ -55,8 +56,9 @@ class AuthService {
   }
 
   FirebaseFunctions get _functions {
-    if (_functionsOverride != null) {
-      return _functionsOverride!;
+    final override = _functionsOverride;
+    if (override != null) {
+      return override;
     }
     if (Firebase.apps.isEmpty) {
       throw FirebaseAuthException(

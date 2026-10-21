@@ -1,6 +1,4 @@
-import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lumora_mobile/features/game/engine/particle_system.dart';
 
 void main() {
   group('ParticleSystemComponent', () {
@@ -13,6 +11,7 @@ void main() {
 
       final p2 = pool.get();
       expect(pool.activeCount, 2);
+      expect(identical(p2, p1), false);
 
       pool.release(p1);
       expect(pool.activeCount, 1);

@@ -1,3 +1,5 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -5,8 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:lumora_mobile/main.dart';
-import 'package:lumora_mobile/app/router.dart';
-import 'package:lumora_mobile/features/game/presentation/game_screen.dart';
 import 'package:lumora_mobile/features/game/presentation/world_map_screen.dart';
 import 'package:lumora_mobile/features/settings/presentation/settings_screen.dart';
 import 'package:lumora_mobile/features/monetization/presentation/shop_screen.dart';
@@ -17,9 +17,30 @@ import 'package:lumora_mobile/features/game/domain/level_data.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
+  /// Reproduit l'état d'authentification attendu par le routeur : sans Firebase,
+  /// aucune redirection n'a lieu ; avec Firebase, les routes protégées exigent
+  /// un utilisateur (connexion anonyme ici) tandis que /auth reste publique.
+  Future<void> prepareAuthState(String route) async {
+    if (Firebase.apps.isEmpty) {
+      return;
+    }
+    final auth = FirebaseAuth.instance;
+    if (route == '/auth') {
+      await auth.signOut();
+      return;
+    }
+    if (auth.currentUser == null) {
+      try {
+        await auth.signInAnonymously();
+      } on FirebaseAuthException {
+        // Hors-ligne : on laisse le routeur appliquer son propre garde-fou.
+      }
+    }
+  }
+
   /// Helper : charge l'app, attend que le routeur soit prêt, navigue vers [route].
   Future<void> _navigateToRoute(WidgetTester tester, String route) async {
-    isAuthenticated = route == '/auth' ? false : true;
+    await prepareAuthState(route);
     await tester.pumpWidget(const ProviderScope(child: LumoraApp()));
     // Laisser le routeur s'initialiser
     for (var i = 0; i < 8; i++) {
