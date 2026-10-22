@@ -9,6 +9,7 @@ import 'app/router.dart';
 import 'app/theme.dart';
 import 'core/firebase_options_fallback.dart';
 import 'features/auth/data/auth_startup_smoke.dart';
+import 'features/crystals/data/crystal_progression_service.dart';
 import 'features/game/data/player_progression_service.dart';
 
 /// Entry point Lumora — initialise Firebase, Flame, AdMob, RevenueCat puis runApp.
@@ -33,6 +34,7 @@ Future<void> main() async {
   await _initializeThirdPartySDKs();
   await AuthStartupSmoke.runIfEnabled();
   await PlayerProgressionService.instance.load();
+  await CrystalProgressionService.instance.load();
 
   runApp(
     const ProviderScope(

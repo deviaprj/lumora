@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/auth_screen.dart';
+import '../features/crystals/presentation/crystal_screen.dart';
 import '../features/game/data/player_progression_service.dart';
 import '../features/game/domain/level_data.dart';
 import '../features/game/presentation/game_screen.dart';
@@ -225,6 +226,16 @@ late final appRouter = GoRouter(
       },
     ),
     GoRoute(
+      path: '/crystals',
+      pageBuilder: (context, state) {
+        final level = int.tryParse(state.uri.queryParameters['level'] ?? '');
+        return _gameTransition(
+          state: state,
+          child: CrystalScreen(level: level),
+        );
+      },
+    ),
+    GoRoute(
       path: '/world-map',
       pageBuilder: (context, state) {
         final completedId = state.uri.queryParameters['completed'];
@@ -433,6 +444,16 @@ class HomeScreen extends StatelessWidget {
                   subtitle: 'Explore les niveaux',
                   gradientColors: [LumoraColors.auroraBlue, LumoraColors.auroraPurple],
                   onTap: () => context.go('/world-map'),
+                ),
+                const SizedBox(height: 12),
+
+                // Cristaux de couleur
+                _HomeCard(
+                  icon: Icons.auto_awesome_rounded,
+                  title: 'Cristaux de Couleur',
+                  subtitle: 'Assemble les éclats, tiens la série',
+                  gradientColors: [LumoraColors.auroraGreen, LumoraColors.auroraBlue],
+                  onTap: () => context.go('/crystals'),
                 ),
                 const SizedBox(height: 12),
 
